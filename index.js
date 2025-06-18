@@ -10,4 +10,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ... rest of your backend code ... 
+// ... rest of your backend code ...
+
+// Port configuration
+const PORT = process.env.PORT || 10000;
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+}); 
