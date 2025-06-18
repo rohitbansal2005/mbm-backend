@@ -483,20 +483,32 @@ router.post('/:id/unsave', auth, async (req, res) => {
 
 // Get saved posts
 router.get('/saved', auth, async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).populate('savedPosts');
-    const savedPosts = await Post.find({ _id: { $in: user.savedPosts } })
-      .populate('author', 'username fullName profilePicture')
-      .populate({
-        path: 'comments.author',
-        select: 'username profilePicture'
-      })
-      .sort({ createdAt: -1 });
+    try {
+        console.log('Fetching saved posts for user:', req.user._id);
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-    res.json(savedPosts);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
+        const savedPosts = await Post.find({
+            _id: { $in: user.savedPosts }
+        })
+        .populate('author', 'username fullName profilePicture')
+        .populate({
+            path: 'comments.author',
+            select: 'username profilePicture'
+        })
+        .sort({ createdAt: -1 });
+
+        console.log(`Found ${savedPosts.length} saved posts`);
+        res.json(savedPosts);
+    } catch (error) {
+        console.error('Error fetching saved posts:', error);
+        res.status(500).json({ 
+            message: error.message,
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
+    }
 });
 
 // Get trending topics
