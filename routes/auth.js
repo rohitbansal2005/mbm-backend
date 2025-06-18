@@ -473,11 +473,23 @@ router.post('/admin/login', async (req, res) => {
 // Regular Login
 router.post('/login', async (req, res) => {
     try {
+        console.log('Login attempt received:', { email: req.body.email });
+        
         const { email, password } = req.body;
+
+        // Validate input
+        if (!email || !password) {
+            console.log('Missing credentials:', { hasEmail: !!email, hasPassword: !!password });
+            return res.status(400).json({
+                success: false,
+                message: 'Email and password are required'
+            });
+        }
 
         // Check if user exists
         const user = await User.findOne({ email });
         if (!user) {
+            console.log('User not found:', email);
             return res.status(400).json({
                 success: false,
                 message: 'Invalid credentials'
@@ -487,21 +499,30 @@ router.post('/login', async (req, res) => {
         // Check password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
+            console.log('Invalid password for user:', email);
             return res.status(400).json({
                 success: false,
                 message: 'Invalid credentials'
             });
         }
 
+        // Check if JWT_SECRET is configured
+        if (!process.env.JWT_SECRET) {
+            console.error('JWT_SECRET is not configured');
+            throw new Error('JWT_SECRET is not configured');
+        }
+
         // Create token
         const token = jwt.sign(
             { 
                 _id: user._id,
-                role: user.role // Include role in token
+                role: user.role
             },
-            process.env.JWT_SECRET || 'your_jwt_secret_key_here',
+            process.env.JWT_SECRET,
             { expiresIn: '24h' }
         );
+
+        console.log('Login successful for user:', email);
 
         res.json({
             success: true,
@@ -510,14 +531,20 @@ router.post('/login', async (req, res) => {
                 _id: user._id,
                 username: user.username,
                 email: user.email,
-                role: user.role // Include role in response
+                role: user.role
             }
         });
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('Login error details:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+        });
+        
         res.status(500).json({
             success: false,
-            message: 'Server error'
+            message: 'Server error during login',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
 });
