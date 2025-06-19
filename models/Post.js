@@ -5,7 +5,9 @@ const commentSchema = new mongoose.Schema({
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     edited: { type: Boolean, default: false },
     editedAt: { type: Date },
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    replies: [this] // nested comments
 });
 
 const postSchema = new mongoose.Schema({

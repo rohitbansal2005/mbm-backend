@@ -587,4 +587,46 @@ router.post('/:postId/comment/:commentId/report', auth, async (req, res) => {
   }
 });
 
+// Like/Unlike a comment
+router.post('/:postId/comment/:commentId/like', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+    const userId = req.user._id.toString();
+    const index = comment.likes.findIndex(id => id.toString() === userId);
+    if (index === -1) {
+      comment.likes.push(userId);
+    } else {
+      comment.likes.splice(index, 1);
+    }
+    await post.save();
+    await post.populate('comments.author', 'username profilePicture');
+    res.json(post);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Reply to a comment
+router.post('/:postId/comment/:commentId/reply', auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    const parentComment = post.comments.id(req.params.commentId);
+    if (!parentComment) return res.status(404).json({ message: 'Comment not found' });
+    parentComment.replies.push({
+      text: req.body.text,
+      author: req.user._id,
+      createdAt: new Date()
+    });
+    await post.save();
+    await post.populate('comments.author', 'username profilePicture');
+    res.json(post);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
 module.exports = router; 
