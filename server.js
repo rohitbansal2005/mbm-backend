@@ -173,6 +173,11 @@ app.use('/uploads', (req, res, next) => {
     next();
 }, express.static(path.join(__dirname, 'uploads')));
 
+// Add default route for '/'
+app.get('/', (req, res) => {
+  res.send('MBM Connect Backend is running!');
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);
