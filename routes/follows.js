@@ -334,6 +334,14 @@ router.put('/reject/:followId', auth, async (req, res) => {
         follow.status = 'rejected';
         await follow.save();
 
+        // Delete the original follow_request notification
+        await Notification.deleteMany({
+            recipient: userId,
+            sender: follow.follower,
+            type: 'follow_request',
+            relatedId: follow._id
+        });
+
         // Emit Socket.IO event
         const io = req.app.get('io');
         if (io) {
