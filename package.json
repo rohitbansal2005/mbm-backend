@@ -4,8 +4,8 @@
   "description": "Backend for MBM Connect",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
     "build": "echo 'No build step required'"
   },
   "engines": {
