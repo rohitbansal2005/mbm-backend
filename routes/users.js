@@ -385,32 +385,33 @@ router.put('/:id', async (req, res) => {
 });
 
 // Follow/Unfollow user
-router.put('/:id/follow', async (req, res) => {
-    try {
-        const userToFollow = await User.findById(req.params.id);
-        const currentUser = await User.findById(req.body.userId);
-
-        if (!userToFollow || !currentUser) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-
-        if (currentUser.following.includes(req.params.id)) {
-            // Unfollow
-            currentUser.following = currentUser.following.filter(id => id.toString() !== req.params.id);
-            userToFollow.followers = userToFollow.followers.filter(id => id.toString() !== req.body.userId);
-        } else {
-            // Follow
-            currentUser.following.push(req.params.id);
-            userToFollow.followers.push(req.body.userId);
-        }
-
-        await currentUser.save();
-        await userToFollow.save();
-        res.json({ message: 'Follow status updated' });
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-});
+// DISABLED: Use /api/follows for follow requests with pending/accept flow
+// router.put('/:id/follow', async (req, res) => {
+//     try {
+//         const userToFollow = await User.findById(req.params.id);
+//         const currentUser = await User.findById(req.body.userId);
+//
+//         if (!userToFollow || !currentUser) {
+//             return res.status(404).json({ message: 'User not found' });
+//         }
+//
+//         if (currentUser.following.includes(req.params.id)) {
+//             // Unfollow
+//             currentUser.following = currentUser.following.filter(id => id.toString() !== req.params.id);
+//             userToFollow.followers = userToFollow.followers.filter(id => id.toString() !== req.body.userId);
+//         } else {
+//             // Follow
+//             currentUser.following.push(req.params.id);
+//             userToFollow.followers.push(req.body.userId);
+//         }
+//
+//         await currentUser.save();
+//         await userToFollow.save();
+//         res.json({ message: 'Follow status updated' });
+//     } catch (error) {
+//         res.status(400).json({ message: error.message });
+//     }
+// });
 
 // Get suggested users
 router.get('/suggested', auth, async (req, res) => {
