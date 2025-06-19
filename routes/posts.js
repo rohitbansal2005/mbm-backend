@@ -1,46 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
 const Post = require('../models/Post');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 const sharp = require('sharp');
-const fs = require('fs');
 const Report = require('../models/Report');
+// Use Cloudinary multer config for uploads
+const upload = require('../config/multer');
 
 // In-memory array for demo (use DB in production)
 const postReports = [];
-
-// Multer setup for images and videos
-const uploadDir = path.join(__dirname, '..', 'uploads', 'posts');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + ext);
-  }
-});
-const fileFilter = (req, file, cb) => {
-  if (
-    file.mimetype.startsWith('image/') ||
-    file.mimetype.startsWith('video/')
-  ) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image and video files are allowed!'), false);
-  }
-};
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 } // 10 MB limit
-});
 
 // Get all posts
 router.get('/', async (req, res) => {
@@ -84,10 +53,8 @@ router.post('/', auth, upload.single('media'), async (req, res) => {
     let mediaType = '';
 
     if (req.file) {
-      // Just save the file as is, like profile photo upload
-      const inputPath = req.file.path;
-      // Get the relative path for storage (convert backslashes to forward slashes)
-      media = path.relative(path.join(__dirname, '..'), inputPath).replace(/\\/g, '/');
+      // Save Cloudinary URL
+      media = req.file.path; // Cloudinary URL
       mediaType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
     }
 
