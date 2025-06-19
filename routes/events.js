@@ -3,43 +3,8 @@ const router = express.Router();
 const Event = require('../models/Event');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-// Ensure uploads directory exists
-const uploadDir = path.join(__dirname, '../uploads/events');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure multer for image upload
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb(new Error('Only image files are allowed!'));
-  },
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
-  }
-});
+// Use Cloudinary multer config for uploads
+const upload = require('../config/multer');
 
 // Get all events
 router.get('/', async (req, res) => {
@@ -76,7 +41,7 @@ router.post('/', [auth, admin, upload.single('image')], async (req, res) => {
       title,
       description,
       organizer: req.user._id,
-      image: req.file ? `uploads/events/${req.file.filename}` : ''
+      image: req.file ? req.file.path : '' // Cloudinary URL
     });
 
     const savedEvent = await event.save();
@@ -87,9 +52,6 @@ router.post('/', [auth, admin, upload.single('image')], async (req, res) => {
     res.status(201).json(savedEvent);
   } catch (error) {
     console.error('Error creating event:', error);
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({ 
       message: 'Server error',
       error: error.message 
@@ -175,14 +137,6 @@ router.put('/:id', [auth, admin, upload.single('image')], async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    // Delete old image if new one is uploaded
-    if (req.file && event.image) {
-      const oldImagePath = path.join(__dirname, '..', event.image);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
-      }
-    }
-
     event.title = title;
     event.description = description;
     event.date = date;
@@ -190,16 +144,13 @@ router.put('/:id', [auth, admin, upload.single('image')], async (req, res) => {
     event.location = location;
     event.type = type;
     if (req.file) {
-      event.image = `uploads/events/${req.file.filename}`;
+      event.image = req.file.path; // Cloudinary URL
     }
 
     const updatedEvent = await event.save();
     res.json(updatedEvent);
   } catch (error) {
     console.error('Error updating event:', error);
-    if (req.file) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({ 
       message: 'Server error',
       error: error.message 
@@ -213,14 +164,6 @@ router.delete('/:id', [auth, admin], async (req, res) => {
     const event = await Event.findById(req.params.id);
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });
-    }
-
-    // Delete event image if exists
-    if (event.image) {
-      const imagePath = path.join(__dirname, '..', event.image);
-      if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
-      }
     }
 
     await event.deleteOne();
