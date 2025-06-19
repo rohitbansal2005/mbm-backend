@@ -64,6 +64,10 @@ router.post('/:userId', auth, async (req, res) => {
             }
         }
 
+        // Get follower user object
+        const followerUser = await User.findById(followerId);
+        const followerUsername = followerUser?.username || 'Someone';
+
         // Create new follow relationship with pending status
         const followData = {
             follower: followerId,
@@ -82,7 +86,7 @@ router.post('/:userId', auth, async (req, res) => {
             recipient: userId,
             sender: followerId,
             type: 'follow_request',
-            content: `${req.user.username} wants to follow you`,
+            content: `${followerUsername} wants to follow you`,
             relatedId: follow._id,
             onModel: 'Follow'
         });
@@ -149,7 +153,7 @@ router.get('/followers/:userId', auth, async (req, res) => {
         const { userId } = req.params;
         const followers = await Follow.find({ 
             following: userId,
-            status: { $in: ['accepted', 'pending'] }  // Only get accepted and pending follows
+            status: 'accepted'  // Only get accepted follows
         })
         .populate({
             path: 'follower',
@@ -185,7 +189,7 @@ router.get('/following/:userId', auth, async (req, res) => {
         const { userId } = req.params;
         const following = await Follow.find({ 
             follower: userId,
-            status: { $in: ['accepted', 'pending'] }  // Only get accepted and pending follows
+            status: 'accepted'  // Only get accepted follows
         })
         .populate({
             path: 'following',
