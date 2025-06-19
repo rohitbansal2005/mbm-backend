@@ -252,6 +252,14 @@ router.put('/accept/:followId', auth, async (req, res) => {
         follow.status = 'accepted';
         await follow.save();
 
+        // Delete the original follow_request notification
+        await Notification.deleteMany({
+            recipient: userId,
+            sender: follow.follower,
+            type: 'follow_request',
+            relatedId: follow._id
+        });
+
         // Create notification for follow acceptance
         const notification = new Notification({
             recipient: follow.follower,
