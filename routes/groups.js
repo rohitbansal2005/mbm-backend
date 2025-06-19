@@ -7,11 +7,16 @@ const multer = require('multer');
 const path = require('path');
 const { check, validationResult } = require('express-validator');
 const Message = require('../models/Message');
+const fs = require('fs');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/groups');
+        const uploadDir = path.join(__dirname, '..', 'uploads', 'groups');
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
     },
     filename: function (req, file, cb) {
         cb(null, Date.now() + path.extname(file.originalname));

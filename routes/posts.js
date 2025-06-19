@@ -13,9 +13,13 @@ const Report = require('../models/Report');
 const postReports = [];
 
 // Multer setup for images and videos
+const uploadDir = path.join(__dirname, '..', 'uploads', 'posts');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '..', 'uploads', 'posts'));
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     const ext = path.extname(file.originalname);
@@ -80,21 +84,11 @@ router.post('/', auth, upload.single('media'), async (req, res) => {
     let mediaType = '';
 
     if (req.file) {
-      // Convert image to webp if it's an image
-      if (req.file.mimetype.startsWith('image/')) {
-        const inputPath = req.file.path;
-        const outputPath = inputPath.replace(/\.(jpg|jpeg|png)$/i, '.webp');
-        await sharp(inputPath)
-          .webp()
-          .toFile(outputPath);
-        fs.unlinkSync(inputPath); // Remove original file
-        media = 'uploads/posts/' + path.basename(outputPath);
-        mediaType = 'image';
-      } else {
-        // For videos, just save as is
-        media = 'uploads/posts/' + req.file.filename;
-        mediaType = 'video';
-      }
+      // Just save the file as is, like profile photo upload
+      const inputPath = req.file.path;
+      // Get the relative path for storage (convert backslashes to forward slashes)
+      media = path.relative(path.join(__dirname, '..'), inputPath).replace(/\\/g, '/');
+      mediaType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
     }
 
     const post = new Post({
