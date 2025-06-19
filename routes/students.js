@@ -8,6 +8,7 @@ const fs = require('fs');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 const Project = require('../models/Project');
+const cloudinaryUpload = require('../config/multer');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -40,7 +41,7 @@ const upload = multer({
 });
 
 // Upload profile photo
-router.post('/:id/photo', auth, upload.single('photo'), async (req, res) => {
+router.post('/:id/photo', auth, cloudinaryUpload.single('photo'), async (req, res) => {
     try {
         const userId = req.user._id;
         const studentId = req.params.id;
@@ -60,16 +61,16 @@ router.post('/:id/photo', auth, upload.single('photo'), async (req, res) => {
             return res.status(400).json({ message: 'No photo uploaded' });
         }
 
-        // Get the relative path for storage (convert backslashes to forward slashes)
-        const relativePath = path.relative(path.join(__dirname, '..'), req.file.path).replace(/\\/g, '/');
+        // Use Cloudinary URL
+        const imageUrl = req.file.path;
 
-        // Update the profile with new photo path
+        // Update the profile with new photo URL
         const updatedStudent = await Student.findByIdAndUpdate(
             studentId,
             { 
                 $set: { 
-                    avatar: relativePath,
-                    profilePicture: relativePath
+                    avatar: imageUrl,
+                    profilePicture: imageUrl
                 } 
             },
             { new: true }
@@ -78,13 +79,13 @@ router.post('/:id/photo', auth, upload.single('photo'), async (req, res) => {
         // Also update the user's profilePicture field
         await User.findByIdAndUpdate(
             student.user,
-            { $set: { profilePicture: relativePath } }
+            { $set: { profilePicture: imageUrl } }
         );
 
-        // Return the updated student with the avatar path
+        // Return the updated student with the avatar URL
         res.json({
             ...updatedStudent.toObject(),
-            avatar: relativePath
+            avatar: imageUrl
         });
     } catch (error) {
         console.error('Error uploading photo:', error);
