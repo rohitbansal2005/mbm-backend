@@ -338,6 +338,10 @@ router.put('/:id', auth, async (req, res) => {
                     return res.status(400).json({ message: `${field} must be an array` });
                 }
                 student[field] = value;
+                // If updating profilePicture, also update User model
+                if (field === 'profilePicture' && value) {
+                  await User.findByIdAndUpdate(student.user, { profilePicture: value });
+                }
             }
         }
 
