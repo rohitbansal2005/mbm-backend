@@ -139,7 +139,7 @@ router.get('/blocked', auth, async (req, res) => {
 });
 
 // Get user by username
-router.get('/findByUsername/:username', auth, async (req, res) => {
+router.get('/findByUsername/:username', async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username }).select('_id username profilePicture'); // Select only necessary fields
     if (!user) {
