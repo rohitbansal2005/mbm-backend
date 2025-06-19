@@ -327,7 +327,8 @@ router.put('/:id', auth, async (req, res) => {
         const allowedUpdates = [
             'fullName', 'rollNumber', 'branch', 'session', 'semester',
             'email', 'phone', 'address', 'bio', 'skills',
-            'education', 'experience', 'socialLinks'
+            'education', 'experience', 'socialLinks',
+            'profilePicture', 'avatar'
         ];
 
         for (const [field, value] of Object.entries(req.body)) {
