@@ -204,7 +204,7 @@ router.delete('/:messageId', auth, async (req, res) => {
             return res.status(403).json({ message: 'Not authorized to delete this message' });
         }
 
-        await message.remove();
+        await message.deleteOne();
 
         // Emit the deleted message through Socket.IO
         const io = req.app.get('io');
