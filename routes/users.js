@@ -564,14 +564,16 @@ router.post('/unblock/:userId', auth, async (req, res) => {
 // Get online users with showOnlineStatus: true
 router.get('/online', auth, async (req, res) => {
   try {
-    // Get all users with their online status from socket.io
     const onlineUsers = await User.find({
-      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) } // Users active in last 5 minutes
+      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
     })
     .select('_id fullName avatar username profilePicture lastSeen')
     .lean();
 
-    // Get settings for these users
+    if (!onlineUsers || onlineUsers.length === 0) {
+      return res.json([]);
+    }
+
     const settings = await UserSettings.find({ 
       user: { $in: onlineUsers.map(u => u._id) }
     });
