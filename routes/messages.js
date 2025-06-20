@@ -159,8 +159,8 @@ router.put(
                 return res.status(404).json({ message: 'Message not found' });
             }
 
-            // Check if user is the sender
-            if (message.sender.toString() !== req.user._id) {
+            // Check if user is the sender (fix: use String comparison)
+            if (String(message.sender) !== String(req.user._id)) {
                 return res.status(403).json({ message: 'Not authorized to edit this message' });
             }
 
@@ -199,8 +199,8 @@ router.delete('/:messageId', auth, async (req, res) => {
             return res.status(404).json({ message: 'Message not found' });
         }
 
-        // Check if user is the sender
-        if (message.sender.toString() !== req.user._id) {
+        // Check if user is the sender (fix: use String comparison)
+        if (String(message.sender) !== String(req.user._id)) {
             return res.status(403).json({ message: 'Not authorized to delete this message' });
         }
 
