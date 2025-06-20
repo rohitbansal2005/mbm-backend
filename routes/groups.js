@@ -205,19 +205,15 @@ router.delete('/:id', auth, async (req, res) => {
         if (!group) {
             return res.status(404).json({ msg: 'Group not found' });
         }
-
         // Check if user is creator
         if (group.creator.toString() !== req.user._id.toString()) {
             return res.status(401).json({ msg: 'User not authorized' });
         }
-
-        await group.remove();
+        // Optionally: delete all group messages, posts, events here
+        await group.deleteOne(); // Use deleteOne instead of remove
         res.json({ msg: 'Group removed' });
     } catch (err) {
-        console.error(err.message);
-        if (err.kind === 'ObjectId') {
-            return res.status(404).json({ msg: 'Group not found' });
-        }
+        console.error('Group delete error:', err);
         res.status(500).send('Server Error');
     }
 });
