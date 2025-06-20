@@ -490,7 +490,7 @@ router.delete('/:groupId/messages/:messageId', auth, async (req, res) => {
         if (message.sender.toString() !== req.user._id.toString()) {
             return res.status(403).json({ msg: 'Not authorized to delete this message' });
         }
-        await message.remove();
+        await message.deleteOne();
         res.json({ msg: 'Message deleted', messageId: req.params.messageId });
     } catch (err) {
         console.error(err.message);
