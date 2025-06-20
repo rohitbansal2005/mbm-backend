@@ -113,7 +113,11 @@ const initializeSocket = (server) => {
           console.error('No userId provided for userLogin');
           return;
         }
-
+        // Validate userId is a valid ObjectId
+        if (!/^[a-fA-F0-9]{24}$/.test(userId)) {
+          console.error('Invalid userId for userLogin:', userId);
+          return;
+        }
         console.log('User login attempt:', userId);
         socket.userId = userId;
         
