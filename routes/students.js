@@ -186,7 +186,7 @@ router.get('/:id', auth, async (req, res) => {
         }));
 
         // Check if the requesting user is the profile owner
-        const isOwner = req.user._id === studentData.user._id.toString();
+        const isOwner = req.user._id.toString() === studentData.user._id.toString();
         
         // If not the owner, apply privacy settings
         if (!isOwner) {
@@ -258,6 +258,8 @@ router.get('/:id', auth, async (req, res) => {
             }
         }
 
+        // Always return isOwner in the response for frontend UI
+        studentData.isOwner = isOwner;
         return res.json(studentData);
     } catch (error) {
         console.error('Error in GET /students/:id:', error);
