@@ -192,11 +192,11 @@ router.get('/:id', auth, async (req, res) => {
         if (!isOwner) {
             // Check if the requesting user is a follower
             const isFollower = studentData.followers.some(
-                follower => follower._id.toString() === req.user._id
+                follower => follower._id.toString() === req.user._id.toString()
             );
             // Check if the profile owner follows the requesting user (mutual follow)
             const isMutualFriend = isFollower && studentData.following.some(
-                following => following._id.toString() === req.user._id
+                following => following._id.toString() === req.user._id.toString()
             );
             // Privacy logic
             if (studentData.privacy?.profile === 'private' && !isMutualFriend) {
