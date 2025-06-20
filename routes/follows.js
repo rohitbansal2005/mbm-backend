@@ -151,6 +151,17 @@ router.delete('/:userId', auth, async (req, res) => {
 router.get('/followers/:userId', auth, async (req, res) => {
     try {
         const { userId } = req.params;
+        // Privacy logic: fetch the target student's privacy settings
+        const targetStudent = await Student.findOne({ user: userId }).populate('followers').populate('following');
+        if (!targetStudent) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const isOwner = req.user._id === userId;
+        const isFollower = targetStudent.followers.some(f => f._id.toString() === req.user._id);
+        const isMutualFriend = isFollower && targetStudent.following.some(f => f._id.toString() === req.user._id);
+        if (!isOwner && targetStudent.privacy?.followers === 'private' && !isMutualFriend) {
+            return res.status(403).json({ message: 'Followers list is private.' });
+        }
         const followers = await Follow.find({ 
             following: userId,
             status: 'accepted'  // Only get accepted follows
@@ -187,6 +198,17 @@ router.get('/followers/:userId', auth, async (req, res) => {
 router.get('/following/:userId', auth, async (req, res) => {
     try {
         const { userId } = req.params;
+        // Privacy logic: fetch the target student's privacy settings
+        const targetStudent = await Student.findOne({ user: userId }).populate('followers').populate('following');
+        if (!targetStudent) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const isOwner = req.user._id === userId;
+        const isFollower = targetStudent.followers.some(f => f._id.toString() === req.user._id);
+        const isMutualFriend = isFollower && targetStudent.following.some(f => f._id.toString() === req.user._id);
+        if (!isOwner && targetStudent.privacy?.following === 'private' && !isMutualFriend) {
+            return res.status(403).json({ message: 'Following list is private.' });
+        }
         const following = await Follow.find({ 
             follower: userId,
             status: 'accepted'  // Only get accepted follows
