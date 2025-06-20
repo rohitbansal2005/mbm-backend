@@ -38,6 +38,13 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const userId = req.user?._id || req.user?.userId || 'Guest';
+  console.log(`[${new Date().toISOString()}] [${req.method}] ${req.originalUrl} - User: ${userId}`);
+  next();
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
