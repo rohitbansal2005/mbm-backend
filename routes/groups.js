@@ -268,6 +268,11 @@ router.put('/:id/leave', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Group not found' });
         }
 
+        // Prevent creator from leaving
+        if (group.creator.toString() === req.user._id.toString()) {
+            return res.status(400).json({ msg: 'Creator cannot leave the group. You can delete the group or transfer ownership.' });
+        }
+
         // Check if user is a member
         if (!group.members.map(m => m.toString()).includes(req.user._id.toString())) {
             return res.status(400).json({ msg: 'Not a member of this group' });
@@ -443,6 +448,50 @@ router.post('/:groupId/messages', auth, async (req, res) => {
             io.to(req.params.groupId).emit('receiveGroupMessage', newMessage);
         }
         res.json(newMessage);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   PUT api/groups/:groupId/messages/:messageId
+// @desc    Edit a group message
+// @access  Private
+router.put('/:groupId/messages/:messageId', auth, async (req, res) => {
+    try {
+        const message = await GroupMessage.findById(req.params.messageId);
+        if (!message) {
+            return res.status(404).json({ msg: 'Message not found' });
+        }
+        // Only sender can edit
+        if (message.sender.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ msg: 'Not authorized to edit this message' });
+        }
+        message.text = req.body.text;
+        await message.save();
+        await message.populate('sender', 'username profilePicture avatar');
+        res.json(message);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   DELETE api/groups/:groupId/messages/:messageId
+// @desc    Delete a group message
+// @access  Private
+router.delete('/:groupId/messages/:messageId', auth, async (req, res) => {
+    try {
+        const message = await GroupMessage.findById(req.params.messageId);
+        if (!message) {
+            return res.status(404).json({ msg: 'Message not found' });
+        }
+        // Only sender can delete
+        if (message.sender.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ msg: 'Not authorized to delete this message' });
+        }
+        await message.remove();
+        res.json({ msg: 'Message deleted', messageId: req.params.messageId });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
