@@ -574,8 +574,14 @@ router.get('/online', auth, async (req, res) => {
       return res.json([]);
     }
 
+    // Only use valid user IDs
+    const userIds = onlineUsers.map(u => u._id).filter(Boolean);
+    if (userIds.length === 0) {
+      return res.json([]);
+    }
+
     const settings = await UserSettings.find({ 
-      user: { $in: onlineUsers.map(u => u._id) }
+      user: { $in: userIds }
     });
 
     // Create a map of user settings
