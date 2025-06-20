@@ -498,4 +498,36 @@ router.delete('/:groupId/messages/:messageId', auth, async (req, res) => {
     }
 });
 
+// @route   PUT api/groups/:id/add-member
+// @desc    Add a member to group
+// @access  Private (creator/admin only)
+router.put('/:id/add-member', auth, async (req, res) => {
+    try {
+        const group = await Group.findById(req.params.id);
+        if (!group) return res.status(404).json({ msg: 'Group not found' });
+
+        // Only creator or admin can add members
+        if (
+            group.creator.toString() !== req.user._id.toString() &&
+            !group.admins.map(a => a.toString()).includes(req.user._id.toString())
+        ) {
+            return res.status(401).json({ msg: 'Not authorized' });
+        }
+
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ msg: 'User ID required' });
+
+        if (group.members.map(m => m.toString()).includes(userId)) {
+            return res.status(400).json({ msg: 'User already a member' });
+        }
+
+        group.members.push(userId);
+        await group.save();
+        res.json(group);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
