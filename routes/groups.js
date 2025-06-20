@@ -530,4 +530,38 @@ router.put('/:id/add-member', auth, async (req, res) => {
     }
 });
 
+// @route   PUT api/groups/:id/remove-member
+// @desc    Remove a member from group
+// @access  Private (creator/admin only)
+router.put('/:id/remove-member', auth, async (req, res) => {
+    try {
+        const group = await Group.findById(req.params.id);
+        if (!group) return res.status(404).json({ msg: 'Group not found' });
+
+        // Only creator or admin can remove members
+        if (
+            group.creator.toString() !== req.user._id.toString() &&
+            !group.admins.map(a => a.toString()).includes(req.user._id.toString())
+        ) {
+            return res.status(401).json({ msg: 'Not authorized' });
+        }
+
+        const { userId } = req.body;
+        if (!userId) return res.status(400).json({ msg: 'User ID required' });
+
+        // Prevent removing creator
+        if (group.creator.toString() === userId) {
+            return res.status(400).json({ msg: 'Cannot remove group creator' });
+        }
+
+        group.members = group.members.filter(m => m.toString() !== userId);
+        group.admins = group.admins.filter(a => a.toString() !== userId); // Also remove from admins if needed
+        await group.save();
+        res.json(group);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
