@@ -425,4 +425,28 @@ router.post('/accept/:followId', auth, async (req, res, next) => {
   next();
 });
 
+// Cancel/withdraw follow request by followId
+router.delete('/by-id/:followId', auth, async (req, res) => {
+  try {
+    const { followId } = req.params;
+    const follow = await Follow.findOneAndDelete({
+      _id: followId,
+      follower: req.user._id,
+      status: 'pending'
+    });
+    if (!follow) {
+      return res.status(404).json({ message: 'Follow request not found' });
+    }
+    // Delete related notification
+    await Notification.deleteMany({
+      sender: req.user._id,
+      relatedId: followId,
+      type: 'follow_request'
+    });
+    res.json({ message: 'Follow request cancelled' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error cancelling follow request', error: error.message });
+  }
+});
+
 module.exports = router; 
