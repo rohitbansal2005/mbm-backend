@@ -174,6 +174,10 @@ router.get('/friends', auth, async (req, res) => {
 
 // Get user by ID
 router.get('/:id', auth, async (req, res) => {
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+    }
     try {
         // Restrict access if requester is blocked by the profile owner
         if (await isBlocked(req.user._id, req.params.id)) {
