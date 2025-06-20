@@ -8,6 +8,8 @@ const path = require('path');
 const { check, validationResult } = require('express-validator');
 const Message = require('../models/Message');
 const fs = require('fs');
+const upload = require('../config/multer'); // Use Cloudinary multer config
+const GroupMessage = require('../models/GroupMessage');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -23,7 +25,7 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({
+const uploadMulter = multer({
     storage: storage,
     limits: { fileSize: 5000000 }, // 5MB limit
     fileFilter: function (req, file, cb) {
@@ -407,15 +409,9 @@ router.put('/:id/remove-admin/:userId', auth, async (req, res) => {
 // @access  Private
 router.get('/:groupId/messages', auth, async (req, res) => {
     try {
-        const messages = await Message.find({ group: req.params.groupId })
-            .populate('sender', 'username profilePicture avatar') // Assuming messages are linked to users and sender is populated
-            .sort({ createdAt: 1 }); // Sort by creation date
-
-        // Although a 404 for no messages is possible, returning an empty array is often better UX for a chat
-        // if (!messages || messages.length === 0) {
-        //     return res.status(404).json({ msg: 'Messages not found for this group' });
-        // }
-
+        const messages = await GroupMessage.find({ group: req.params.groupId })
+            .populate('sender', 'username profilePicture avatar')
+            .sort({ createdAt: 1 });
         res.json(messages);
     } catch (err) {
         console.error(err.message);
@@ -432,31 +428,20 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         if (!group) {
             return res.status(404).json({ msg: 'Group not found' });
         }
-
-        // Check if the user is a member of the group (optional, but good practice)
-        // This assumes your Group model has a 'members' array of user IDs
         if (!group.members.map(m => m.toString()).includes(req.user._id.toString())) {
              return res.status(403).json({ msg: 'You are not a member of this group' });
         }
-
-        const newMessage = new Message({
+        const newMessage = new GroupMessage({
             group: req.params.groupId,
             sender: req.user._id,
             text: req.body.text,
         });
-
         await newMessage.save();
-
-        // Populate the sender information for the emitted message
         await newMessage.populate('sender', 'username profilePicture avatar');
-
-        // Emit the new message to the group using Socket.IO (assuming you have Socket.IO set up)
         const io = req.app.get('io');
         if (io) {
-            // Emit to the group's room
             io.to(req.params.groupId).emit('receiveGroupMessage', newMessage);
         }
-
         res.json(newMessage);
     } catch (err) {
         console.error(err.message);
