@@ -570,19 +570,30 @@ router.get('/online', auth, async (req, res) => {
     .select('_id fullName avatar username profilePicture lastSeen')
     .lean();
 
+    console.log('Fetched onlineUsers:', onlineUsers);
+
     if (!onlineUsers || onlineUsers.length === 0) {
       return res.json([]);
     }
 
     // Only use valid user IDs
-    const userIds = onlineUsers.map(u => u._id).filter(Boolean);
+    const userIds = onlineUsers.map(u => u._id).filter(id => id && (typeof id === 'string' || (id && id.toString && id.toString().length === 24)));
+    console.log('User IDs for settings:', userIds);
+
     if (userIds.length === 0) {
       return res.json([]);
     }
 
-    const settings = await UserSettings.find({ 
-      user: { $in: userIds }
-    });
+    let settings = [];
+    try {
+      settings = await UserSettings.find({ 
+        user: { $in: userIds }
+      });
+      console.log('Fetched settings:', settings);
+    } catch (settingsErr) {
+      console.error('Error fetching user settings:', settingsErr);
+      return res.json([]); // Defensive: don't crash if settings fetch fails
+    }
 
     // Create a map of user settings
     const settingsMap = new Map(
