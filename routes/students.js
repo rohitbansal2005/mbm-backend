@@ -194,12 +194,8 @@ router.get('/:id', auth, async (req, res) => {
             const isFollower = studentData.followers.some(
                 follower => follower._id.toString() === req.user._id.toString()
             );
-            // Check if the profile owner follows the requesting user (mutual follow)
-            const isMutualFriend = isFollower && studentData.following.some(
-                following => following._id.toString() === req.user._id.toString()
-            );
-            // Privacy logic
-            if (studentData.privacy?.profile === 'private' && !isMutualFriend) {
+            // Instagram-style: Only follower required, not mutual
+            if (studentData.privacy?.profile === 'private' && !isFollower) {
                 return res.status(403).json({ message: 'This profile is private.' });
             }
             // Apply privacy settings for each field
@@ -219,7 +215,6 @@ router.get('/:id', auth, async (req, res) => {
 
             Object.entries(privacyFields).forEach(([field, privacyKey]) => {
                 const privacyLevel = studentData.privacy[privacyKey];
-                
                 if (privacyLevel === 'private' || 
                     (privacyLevel === 'friends' && !isFollower)) {
                     if (field === 'socialLinks') {
