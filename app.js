@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+require('./models/Comment'); // Register Comment model for mongoose populate
 const app = express();
 const settingsRoutes = require('./routes/settings');
 const notificationRoutes = require('./routes/notifications');
