@@ -26,7 +26,6 @@ require('./models/Event');
 require('./models/Message');
 require('./models/Notification');
 require('./models/Follow');
-require('./models/Report');
 
 const helpCenterRoutes = require('./routes/helpCenter');
 const reportsRouter = require('./routes/reports');
