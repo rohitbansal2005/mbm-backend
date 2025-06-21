@@ -41,7 +41,7 @@ router.post('/', auth, async (req, res) => {
         }
 
         const report = new Report({
-            reporter: req.user.userId,
+            reporter: req.user._id,
             reportedItem,
             itemType,
             reason,
