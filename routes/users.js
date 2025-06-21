@@ -139,6 +139,67 @@ router.get('/blocked', auth, async (req, res) => {
     }
 });
 
+// Get online users with showOnlineStatus: true
+router.get('/online', auth, async (req, res) => {
+  try {
+    const onlineUsers = await User.find({
+      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
+    })
+    .select('_id fullName avatar username profilePicture lastSeen')
+    .lean();
+
+    console.log('Fetched onlineUsers:', onlineUsers);
+
+    if (!onlineUsers || onlineUsers.length === 0) {
+      return res.json([]);
+    }
+
+    // Only use valid user IDs
+    const userIds = onlineUsers.map(u => u._id).filter(id => id && (typeof id === 'string' || (id && id.toString && id.toString().length === 24)));
+    console.log('User IDs for settings:', userIds);
+
+    if (userIds.length === 0) {
+      return res.json([]);
+    }
+
+    let settings = [];
+    try {
+      settings = await UserSettings.find({ 
+        user: { $in: userIds }
+      });
+      console.log('Fetched settings:', settings);
+    } catch (settingsErr) {
+      console.error('Error fetching user settings:', settingsErr);
+      return res.json([]); // Defensive: don't crash if settings fetch fails
+    }
+
+    // Create a map of user settings
+    const settingsMap = new Map(
+      settings.map(s => [s.user.toString(), s])
+    );
+
+    // Filter users based on settings and add online status
+    const filteredUsers = onlineUsers
+      .filter(user => {
+        const userSettings = settingsMap.get(user._id.toString());
+        // If no settings exist, default to showing online status
+        return !userSettings || userSettings.showOnlineStatus;
+      })
+      .map(user => ({
+        ...user,
+        isOnline: true
+      }));
+
+    res.json(filteredUsers);
+  } catch (err) {
+    console.error('Error fetching online users:', err);
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+});
+
 // Get user by username
 router.get('/findByUsername/:username', async (req, res) => {
   try {
@@ -611,67 +672,6 @@ router.post('/unblock/:userId', auth, async (req, res) => {
         console.error('Unblock user error:', error);
         res.status(500).json({ error: 'Failed to unblock user' });
     }
-});
-
-// Get online users with showOnlineStatus: true
-router.get('/online', auth, async (req, res) => {
-  try {
-    const onlineUsers = await User.find({
-      lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
-    })
-    .select('_id fullName avatar username profilePicture lastSeen')
-    .lean();
-
-    console.log('Fetched onlineUsers:', onlineUsers);
-
-    if (!onlineUsers || onlineUsers.length === 0) {
-      return res.json([]);
-    }
-
-    // Only use valid user IDs
-    const userIds = onlineUsers.map(u => u._id).filter(id => id && (typeof id === 'string' || (id && id.toString && id.toString().length === 24)));
-    console.log('User IDs for settings:', userIds);
-
-    if (userIds.length === 0) {
-      return res.json([]);
-    }
-
-    let settings = [];
-    try {
-      settings = await UserSettings.find({ 
-        user: { $in: userIds }
-      });
-      console.log('Fetched settings:', settings);
-    } catch (settingsErr) {
-      console.error('Error fetching user settings:', settingsErr);
-      return res.json([]); // Defensive: don't crash if settings fetch fails
-    }
-
-    // Create a map of user settings
-    const settingsMap = new Map(
-      settings.map(s => [s.user.toString(), s])
-    );
-
-    // Filter users based on settings and add online status
-    const filteredUsers = onlineUsers
-      .filter(user => {
-        const userSettings = settingsMap.get(user._id.toString());
-        // If no settings exist, default to showing online status
-        return !userSettings || userSettings.showOnlineStatus;
-      })
-      .map(user => ({
-        ...user,
-        isOnline: true
-      }));
-
-    res.json(filteredUsers);
-  } catch (err) {
-    console.error('Error fetching online users:', err);
-    res.status(500).json({ 
-      message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
-  }
 });
 
 // Add a catch-all for unmatched routes at the end for debugging
