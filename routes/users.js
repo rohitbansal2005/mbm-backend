@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const Follow = require('../models/Follow');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
@@ -180,38 +179,14 @@ router.get('/:id', auth, async (req, res) => {
         return res.status(400).json({ message: 'Invalid user ID' });
     }
     try {
-        const requestedUserId = req.params.id;
-        const requesterId = req.user._id;
-
         // Restrict access if requester is blocked by the profile owner
-        if (await isBlocked(requesterId, requestedUserId)) {
+        if (await isBlocked(req.user._id, req.params.id)) {
             return res.status(403).json({ message: 'You are blocked by this user.' });
         }
-
-        const user = await User.findById(requestedUserId).select('-password');
+        const user = await User.findById(req.params.id).select('-password');
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-
-        const settings = await UserSettings.findOne({ user: requestedUserId });
-
-        // If profile is private, check if the requester is a follower
-        if (settings && settings.profilePrivacy === 'private' && requestedUserId.toString() !== requesterId.toString()) {
-            const isFollower = await Follow.exists({ follower: requesterId, following: requestedUserId, status: 'accepted' });
-            if (!isFollower) {
-                // If not a follower, return a limited profile
-                return res.json({
-                    _id: user._id,
-                    username: user.username,
-                    profilePicture: user.profilePicture,
-                    avatar: user.avatar,
-                    bio: user.bio,
-                    isPrivate: true
-                });
-            }
-        }
-        
-        // If public or a follower, return the full profile
         res.json(user);
     } catch (error) {
         res.status(500).json({ message: error.message });
