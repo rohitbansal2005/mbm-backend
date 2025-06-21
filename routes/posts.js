@@ -425,16 +425,58 @@ router.get('/reports/all', (req, res) => {
 // Get posts by user ID
 router.get('/user/:userId', auth, async (req, res) => {
   try {
-    console.log('Fetching posts for user:', req.params.userId);
-    const posts = await Post.find({ author: req.params.userId })
+    const mongoose = require('mongoose');
+    const { userId } = req.params;
+    const requesterId = req.user._id;
+
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: 'Invalid user ID' });
+    }
+
+    // Fetch student profile to check privacy settings
+    const studentProfile = await require('../models/Student').findOne({ user: userId });
+    if (studentProfile) {
+      const isOwner = requesterId.toString() === userId.toString();
+      const privacySetting = studentProfile.privacy?.profile || 'public';
+      let canView = false;
+
+      if (isOwner) {
+        canView = true;
+      } else {
+        switch (privacySetting) {
+          case 'public':
+            canView = true;
+            break;
+          case 'friends':
+            const Follow = require('../models/Follow');
+            const userFollowsTarget = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
+            const targetFollowsUser = await Follow.findOne({ follower: userId, following: requesterId, status: 'accepted' });
+            if (userFollowsTarget && targetFollowsUser) {
+              canView = true;
+            }
+            break;
+          case 'private':
+            const FollowModel = require('../models/Follow');
+            const isFollower = await FollowModel.findOne({ follower: requesterId, following: userId, status: 'accepted' });
+            if (isFollower) {
+              canView = true;
+            }
+            break;
+        }
+      }
+      if (!canView) {
+        return res.status(403).json({ message: 'This user\'s posts are private.' });
+      }
+    }
+    // If no student profile, allow (legacy users)
+    const posts = await Post.find({ author: userId })
       .populate('author', 'username fullName profilePicture')
       .populate({
         path: 'comments.author',
         select: 'username profilePicture'
       })
       .sort({ createdAt: -1 });
-    
-    console.log(`Found ${posts.length} posts for user`);
     res.json(posts);
   } catch (error) {
     console.error('Error fetching user posts:', error);
