@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 const sharp = require('sharp');
 const Report = require('../models/Report');
+const createNotification = require('../utils/createNotification');
 // Use Cloudinary multer config for uploads
 const upload = require('../config/multer');
 
@@ -108,8 +109,27 @@ router.put('/:id/like', auth, async (req, res) => {
         }
 
         const likeIndex = post.likes.indexOf(req.user._id);
+        const wasLiked = likeIndex !== -1;
+        
         if (likeIndex === -1) {
             post.likes.push(req.user._id);
+            
+            // Create notification for like (only if not already liked)
+            if (post.author.toString() !== req.user._id.toString()) {
+                try {
+                    await createNotification(
+                        post.author,
+                        req.user._id,
+                        'post_like',
+                        `${req.user.username} liked your post`,
+                        post._id,
+                        'Post'
+                    );
+                } catch (notificationError) {
+                    console.error('Failed to create like notification:', notificationError);
+                    // Don't fail the request if notification creation fails
+                }
+            }
         } else {
             post.likes.splice(likeIndex, 1);
         }
@@ -137,6 +157,24 @@ router.post('/:id/comment', auth, async (req, res) => {
         });
 
         const updatedPost = await post.save();
+        
+        // Create notification for comment (only if not commenting on own post)
+        if (post.author.toString() !== req.user._id.toString()) {
+            try {
+                await createNotification(
+                    post.author,
+                    req.user._id,
+                    'post_comment',
+                    `${req.user.username} commented on your post`,
+                    post._id,
+                    'Post'
+                );
+            } catch (notificationError) {
+                console.error('Failed to create comment notification:', notificationError);
+                // Don't fail the request if notification creation fails
+            }
+        }
+        
         // Populate author for the new comment
         await updatedPost.populate('comments.author', 'username profilePicture');
         res.json(updatedPost);
@@ -566,11 +604,30 @@ router.post('/:postId/comment/:commentId/like', auth, async (req, res) => {
     if (!comment) return res.status(404).json({ message: 'Comment not found' });
     const userId = req.user._id.toString();
     const index = comment.likes.findIndex(id => id.toString() === userId);
+    
     if (index === -1) {
       comment.likes.push(userId);
+      
+      // Create notification for comment like (only if not liking own comment)
+      if (comment.author.toString() !== userId) {
+        try {
+          await createNotification(
+            comment.author,
+            req.user._id,
+            'post_comment',
+            `${req.user.username} liked your comment`,
+            post._id,
+            'Post'
+          );
+        } catch (notificationError) {
+          console.error('Failed to create comment like notification:', notificationError);
+          // Don't fail the request if notification creation fails
+        }
+      }
     } else {
       comment.likes.splice(index, 1);
     }
+    
     await post.save();
     await post.populate('comments.author', 'username profilePicture');
     res.json(post);
