@@ -9,12 +9,12 @@ const reportSchema = new mongoose.Schema({
     reportedItem: {
         type: mongoose.Schema.Types.ObjectId,
         refPath: 'itemType',
-        required: true
+        required: false
     },
     itemType: {
         type: String,
-        enum: ['Post', 'Comment', 'User', 'Group'],
-        required: true
+        enum: ['Post', 'Comment', 'User', 'Group', 'General', 'Help'],
+        required: false
     },
     reason: {
         type: String,
