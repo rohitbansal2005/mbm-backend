@@ -16,10 +16,10 @@ router.get('/', async (req, res) => {
     try {
         console.log('Fetching all posts...');
         const posts = await Post.find()
-            .populate('author', 'username fullName profilePicture avatar _id')
+            .populate('author', 'username fullName profilePicture')
             .populate({
                 path: 'comments.author',
-                select: 'username profilePicture _id'
+                select: 'username profilePicture'
             })
             .sort({ createdAt: -1 });
         

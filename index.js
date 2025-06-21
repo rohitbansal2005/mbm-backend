@@ -46,13 +46,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const postRoutes = require('./routes/posts');
-const conversationRoutes = require('./routes/conversations');
 
 // Use routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
-app.use('/api/conversations', conversationRoutes);
 
 // Request logging middleware
 app.use((req, res, next) => {

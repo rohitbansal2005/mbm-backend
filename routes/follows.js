@@ -409,16 +409,11 @@ router.put('/accept/:followId', auth, async (req, res) => {
         });
 
         // Create notification for follow acceptance
-        const senderUser = await User.findById(userId);
-        if (!senderUser) {
-            console.error('Could not find user to create notification sender.');
-            // Optionally handle this error, though it's unlikely if auth is working
-        }
         const notification = new Notification({
             recipient: follow.follower,
             sender: userId,
             type: 'follow_accepted',
-            content: `${senderUser ? senderUser.username : 'Someone'} accepted your follow request`,
+            content: `${req.user.username} accepted your follow request`,
             relatedId: follow._id,
             onModel: 'Follow'
         });
