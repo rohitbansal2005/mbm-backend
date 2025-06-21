@@ -287,7 +287,31 @@ router.get('/:id', auth, async (req, res) => {
         }
         
         if (!canView) {
-            return res.status(403).json({ message: 'This profile is private.' });
+            // Return only public info
+            const user = await User.findById(targetUserId).select('-password');
+            if (!user) return res.status(404).json({ message: 'User not found' });
+
+            // Only public fields from student profile
+            let publicStudent = null;
+            if (studentProfile) {
+                publicStudent = {
+                    fullName: studentProfile.fullName,
+                    branch: studentProfile.branch,
+                    session: studentProfile.session,
+                    semester: studentProfile.semester,
+                    bio: studentProfile.bio,
+                    privacy: studentProfile.privacy
+                };
+            }
+
+            return res.json({
+                _id: user._id,
+                username: user.username,
+                profilePicture: user.profilePicture,
+                bio: user.bio,
+                student: publicStudent,
+                isPrivate: true
+            });
         }
         
         // 4. If all checks pass, return the full profile with student data
