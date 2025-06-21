@@ -428,9 +428,11 @@ router.get('/user/:userId', auth, async (req, res) => {
     const mongoose = require('mongoose');
     const { userId } = req.params;
     const requesterId = req.user._id;
+    console.log('--- [DEBUG] Fetching posts for user:', userId, 'by requester:', requesterId);
 
     // Validate userId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.log('[DEBUG] Invalid user ID');
       return res.status(400).json({ message: 'Invalid user ID' });
     }
 
@@ -440,34 +442,44 @@ router.get('/user/:userId', auth, async (req, res) => {
       const isOwner = requesterId.toString() === userId.toString();
       const privacySetting = studentProfile.privacy?.profile || 'public';
       let canView = false;
+      console.log('[DEBUG] Privacy setting:', privacySetting, '| isOwner:', isOwner);
 
       if (isOwner) {
         canView = true;
+        console.log('[DEBUG] Requester is owner, can view posts');
       } else {
         switch (privacySetting) {
           case 'public':
             canView = true;
+            console.log('[DEBUG] Profile is public, can view posts');
             break;
           case 'friends':
             const Follow = require('../models/Follow');
             const userFollowsTarget = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
             const targetFollowsUser = await Follow.findOne({ follower: userId, following: requesterId, status: 'accepted' });
+            console.log('[DEBUG] Friends privacy:', { userFollowsTarget: !!userFollowsTarget, targetFollowsUser: !!targetFollowsUser });
             if (userFollowsTarget && targetFollowsUser) {
               canView = true;
+              console.log('[DEBUG] Mutual follow, can view posts');
             }
             break;
           case 'private':
             const FollowModel = require('../models/Follow');
             const isFollower = await FollowModel.findOne({ follower: requesterId, following: userId, status: 'accepted' });
+            console.log('[DEBUG] Private privacy, isFollower:', !!isFollower);
             if (isFollower) {
               canView = true;
+              console.log('[DEBUG] Requester is follower, can view posts');
             }
             break;
         }
       }
       if (!canView) {
+        console.log('[DEBUG] Not allowed to view posts. Returning 403.');
         return res.status(403).json({ message: 'This user\'s posts are private.' });
       }
+    } else {
+      console.log('[DEBUG] No student profile found, allowing posts (legacy user)');
     }
     // If no student profile, allow (legacy users)
     const posts = await Post.find({ author: userId })
@@ -477,6 +489,7 @@ router.get('/user/:userId', auth, async (req, res) => {
         select: 'username profilePicture'
       })
       .sort({ createdAt: -1 });
+    console.log('[DEBUG] Returning', posts.length, 'posts');
     res.json(posts);
   } catch (error) {
     console.error('Error fetching user posts:', error);
