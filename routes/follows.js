@@ -222,6 +222,12 @@ router.get('/followers/:userId', auth, async (req, res) => {
                     }
                     break;
                 case 'private':
+                    console.log('Checking if requester is a follower...');
+                    const isFollower = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
+                    console.log('Requester is a follower:', !!isFollower);
+                    if (isFollower) {
+                        canView = true;
+                    }
                     break;
             }
         }
@@ -307,6 +313,12 @@ router.get('/following/:userId', auth, async (req, res) => {
                     }
                     break;
                 case 'private':
+                    console.log('Checking if requester is a follower...');
+                    const isFollower = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
+                    console.log('Requester is a follower:', !!isFollower);
+                    if (isFollower) {
+                        canView = true;
+                    }
                     break;
             }
         }

@@ -10,6 +10,7 @@ const Message = require('../models/Message');
 const UserSettings = require('../models/UserSettings');
 const isBlocked = require('../utils/isBlocked');
 const { getOnlineUserIds } = require('../socket');
+const Follow = require('../models/Follow');
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -179,15 +180,62 @@ router.get('/:id', auth, async (req, res) => {
         return res.status(400).json({ message: 'Invalid user ID' });
     }
     try {
-        // Restrict access if requester is blocked by the profile owner
-        if (await isBlocked(req.user._id, req.params.id)) {
-            return res.status(403).json({ message: 'You are blocked by this user.' });
+        const { id: targetUserId } = req.params;
+        const { _id: requesterId } = req.user;
+
+        // 1. Check for blocking first
+        if (await isBlocked(requesterId, targetUserId) || await isBlocked(targetUserId, requesterId)) {
+            return res.status(403).json({ message: 'You cannot view this profile.' });
         }
-        const user = await User.findById(req.params.id).select('-password');
+
+        // 2. Fetch student profile to check privacy settings
+        const studentProfile = await Student.findOne({ user: targetUserId });
+        if (!studentProfile) {
+            // Fallback for users without a student profile
+            const user = await User.findById(targetUserId).select('-password');
+            if (!user) return res.status(404).json({ message: 'User not found' });
+            return res.json(user);
+        }
+
+        // 3. Perform privacy check
+        const isOwner = requesterId.toString() === targetUserId.toString();
+        const privacySetting = studentProfile.privacy?.profile || 'public';
+        let canView = false;
+
+        if (isOwner) {
+            canView = true;
+        } else {
+            switch (privacySetting) {
+                case 'public':
+                    canView = true;
+                    break;
+                case 'friends': // Assuming 'friends' means mutual follow
+                    const userFollowsTarget = await Follow.findOne({ follower: requesterId, following: targetUserId, status: 'accepted' });
+                    const targetFollowsUser = await Follow.findOne({ follower: targetUserId, following: requesterId, status: 'accepted' });
+                    if (userFollowsTarget && targetFollowsUser) {
+                        canView = true;
+                    }
+                    break;
+                case 'private':
+                    const isFollower = await Follow.findOne({ follower: requesterId, following: targetUserId, status: 'accepted' });
+                    if (isFollower) {
+                        canView = true;
+                    }
+                    break;
+            }
+        }
+        
+        if (!canView) {
+            return res.status(403).json({ message: 'This profile is private.' });
+        }
+        
+        // 4. If all checks pass, return the full profile
+        const user = await User.findById(targetUserId).select('-password');
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
         res.json(user);
+
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
