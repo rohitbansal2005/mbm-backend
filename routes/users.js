@@ -290,12 +290,22 @@ router.get('/:id', auth, async (req, res) => {
             return res.status(403).json({ message: 'This profile is private.' });
         }
         
-        // 4. If all checks pass, return the full profile
+        // 4. If all checks pass, return the full profile with student data
         const user = await User.findById(targetUserId).select('-password');
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        res.json(user);
+
+        // Get student profile data
+        const studentProfileData = await Student.findOne({ user: targetUserId });
+        
+        // Combine user and student data
+        const profileData = {
+            ...user.toObject(),
+            student: studentProfileData ? studentProfileData.toObject() : null
+        };
+
+        res.json(profileData);
 
     } catch (error) {
         res.status(500).json({ message: error.message });
