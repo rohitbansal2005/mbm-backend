@@ -185,15 +185,15 @@ router.delete('/:userId', auth, async (req, res) => {
 router.get('/followers/:userId', auth, async (req, res) => {
     try {
         const { userId } = req.params;
+        const requesterId = req.user._id;
+
         // Privacy logic: fetch the target student's privacy settings
-        const targetStudent = await Student.findOne({ user: userId }).populate('followers').populate('following');
+        const targetStudent = await Student.findOne({ user: userId });
         if (!targetStudent) {
             return res.status(404).json({ message: 'User not found' });
         }
-        const isOwner = req.user._id.toString() === userId.toString();
-        const isFollower = targetStudent.followers.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
-        const isMutualFriend = isFollower && targetStudent.following.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
-
+        
+        const isOwner = requesterId.toString() === userId.toString();
         const privacySetting = targetStudent.privacy?.followers || 'public';
         let canView = false;
 
@@ -205,12 +205,13 @@ router.get('/followers/:userId', auth, async (req, res) => {
                     canView = true;
                     break;
                 case 'friends':
-                    if (isMutualFriend) {
+                    const userFollowsTarget = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
+                    const targetFollowsUser = await Follow.findOne({ follower: userId, following: requesterId, status: 'accepted' });
+                    if (userFollowsTarget && targetFollowsUser) {
                         canView = true;
                     }
                     break;
                 case 'private':
-                    // Only owner can view private lists
                     break;
             }
         }
@@ -218,6 +219,7 @@ router.get('/followers/:userId', auth, async (req, res) => {
         if (!canView) {
             return res.status(403).json({ message: 'Followers list is private.' });
         }
+        
         const followers = await Follow.find({ 
             following: userId,
             status: 'accepted'  // Only get accepted follows
@@ -254,15 +256,15 @@ router.get('/followers/:userId', auth, async (req, res) => {
 router.get('/following/:userId', auth, async (req, res) => {
     try {
         const { userId } = req.params;
+        const requesterId = req.user._id;
+
         // Privacy logic: fetch the target student's privacy settings
-        const targetStudent = await Student.findOne({ user: userId }).populate('followers').populate('following');
+        const targetStudent = await Student.findOne({ user: userId });
         if (!targetStudent) {
             return res.status(404).json({ message: 'User not found' });
         }
-        const isOwner = req.user._id.toString() === userId.toString();
-        const isFollower = targetStudent.followers.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
-        const isMutualFriend = isFollower && targetStudent.following.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
 
+        const isOwner = requesterId.toString() === userId.toString();
         const privacySetting = targetStudent.privacy?.following || 'public';
         let canView = false;
 
@@ -274,12 +276,13 @@ router.get('/following/:userId', auth, async (req, res) => {
                     canView = true;
                     break;
                 case 'friends':
-                    if (isMutualFriend) {
+                    const userFollowsTarget = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
+                    const targetFollowsUser = await Follow.findOne({ follower: userId, following: requesterId, status: 'accepted' });
+                    if (userFollowsTarget && targetFollowsUser) {
                         canView = true;
                     }
                     break;
                 case 'private':
-                    // Only owner can view private lists
                     break;
             }
         }
@@ -287,6 +290,7 @@ router.get('/following/:userId', auth, async (req, res) => {
         if (!canView) {
             return res.status(403).json({ message: 'Following list is private.' });
         }
+
         const following = await Follow.find({ 
             follower: userId,
             status: 'accepted'  // Only get accepted follows
