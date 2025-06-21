@@ -238,7 +238,8 @@ router.get('/followers/:userId', auth, async (req, res) => {
         })
         .sort({ createdAt: -1 });
 
-        res.json(followers.map(f => f.follower));
+        // Return the full follow object, not just the follower details
+        res.json(followers);
 
     } catch (error) {
         console.error('Error fetching followers list:', error);
@@ -303,7 +304,8 @@ router.get('/following/:userId', auth, async (req, res) => {
         })
         .sort({ createdAt: -1 });
 
-        res.json(following.map(f => f.following));
+        // Return the full follow object, not just the following details
+        res.json(following);
         
     } catch (error) {
         console.error('Error fetching following list:', error);
