@@ -439,7 +439,11 @@ router.get('/user/:userId', auth, async (req, res) => {
     // Fetch student profile to check privacy settings
     const studentProfile = await require('../models/Student').findOne({ user: userId });
     if (studentProfile) {
-      const isOwner = requesterId.toString() === userId.toString();
+      // Ensure both IDs are strings for comparison
+      const requesterIdStr = requesterId.toString();
+      const userIdStr = userId.toString();
+      const isOwner = requesterIdStr === userIdStr;
+      console.log('[DEBUG] Owner check:', { requesterIdStr, userIdStr, isOwner });
       const privacySetting = studentProfile.privacy?.profile || 'public';
       let canView = false;
       console.log('[DEBUG] Privacy setting:', privacySetting, '| isOwner:', isOwner);
