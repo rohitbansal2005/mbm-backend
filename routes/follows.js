@@ -149,7 +149,7 @@ router.post('/:userId', auth, async (req, res) => {
 router.delete('/:userId', auth, async (req, res) => {
     try {
         const { userId } = req.params;
-        const followerId = req.user.userId;
+        const followerId = req.user._id;
 
         const follow = await Follow.findOneAndDelete({
             follower: followerId,
@@ -366,7 +366,7 @@ router.get('/following/:userId', auth, async (req, res) => {
 router.get('/pending', auth, async (req, res) => {
     try {
         const pendingRequests = await Follow.find({
-            following: req.user.userId,
+            following: req.user._id,
             status: 'pending'
         })
         .populate('follower', 'username profilePicture')
@@ -385,7 +385,7 @@ router.put('/accept/:followId', auth, async (req, res) => {
     try {
         console.log('io object in follows route:', req.app.get('io') ? 'Available' : 'Not available');
         const { followId } = req.params;
-        const userId = req.user.userId;
+        const userId = req.user._id;
 
         const follow = await Follow.findOne({
             _id: followId,
@@ -467,7 +467,7 @@ router.put('/reject/:followId', auth, async (req, res) => {
         console.log('Reject follow request route hit');
         console.log('io object in follows route:', req.app.get('io') ? 'Available' : 'Not available');
         const { followId } = req.params;
-        const userId = req.user.userId;
+        const userId = req.user._id;
 
         const follow = await Follow.findOne({
             _id: followId,
@@ -516,7 +516,7 @@ router.get('/check/:userId', auth, async (req, res) => {
         console.log('Auth user:', req.user);
         
         const { userId } = req.params;
-        const followerId = req.user.userId;
+        const followerId = req.user._id;
 
         // Validate MongoDB ObjectId
         if (!mongoose.Types.ObjectId.isValid(userId)) {
