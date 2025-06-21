@@ -191,8 +191,8 @@ router.get('/followers/:userId', auth, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         const isOwner = req.user._id.toString() === userId.toString();
-        const isFollower = targetStudent.followers.some(f => f._id.toString() === req.user._id.toString());
-        const isMutualFriend = isFollower && targetStudent.following.some(f => f._id.toString() === req.user._id.toString());
+        const isFollower = targetStudent.followers.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
+        const isMutualFriend = isFollower && targetStudent.following.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
         if (!isOwner && targetStudent.privacy?.followers === 'private' && !isMutualFriend) {
             return res.status(403).json({ message: 'Followers list is private.' });
         }
@@ -238,8 +238,8 @@ router.get('/following/:userId', auth, async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         const isOwner = req.user._id.toString() === userId.toString();
-        const isFollower = targetStudent.followers.some(f => f._id.toString() === req.user._id.toString());
-        const isMutualFriend = isFollower && targetStudent.following.some(f => f._id.toString() === req.user._id.toString());
+        const isFollower = targetStudent.followers.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
+        const isMutualFriend = isFollower && targetStudent.following.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
         if (!isOwner && targetStudent.privacy?.following === 'private' && !isMutualFriend) {
             return res.status(403).json({ message: 'Following list is private.' });
         }
