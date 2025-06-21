@@ -441,7 +441,16 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         await newMessage.populate('sender', 'username profilePicture avatar');
         const io = req.app.get('io');
         if (io) {
-            io.to(req.params.groupId).emit('receiveGroupMessage', newMessage);
+            // Include group info in the socket event
+            const messageWithGroup = {
+                ...newMessage.toObject(),
+                group: {
+                    _id: group._id,
+                    name: group.name,
+                    description: group.description
+                }
+            };
+            io.to(req.params.groupId).emit('receiveGroupMessage', messageWithGroup);
         }
         res.json(newMessage);
     } catch (err) {
@@ -554,6 +563,70 @@ router.put('/:id/remove-member', auth, async (req, res) => {
         group.admins = group.admins.filter(a => a.toString() !== userId); // Also remove from admins if needed
         await group.save();
         res.json(group);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET api/groups/messages/user
+// @desc    Get all group messages for groups user is member of
+// @access  Private
+router.get('/messages/user', auth, async (req, res) => {
+    try {
+        // Get all groups where user is a member
+        const userGroups = await Group.find({
+            members: req.user._id
+        }).select('_id name description');
+
+        if (userGroups.length === 0) {
+            return res.json([]);
+        }
+
+        // Get the latest message from each group
+        const groupIds = userGroups.map(group => group._id);
+        const latestMessages = await GroupMessage.aggregate([
+            {
+                $match: {
+                    group: { $in: groupIds }
+                }
+            },
+            {
+                $sort: { createdAt: -1 }
+            },
+            {
+                $group: {
+                    _id: '$group',
+                    latestMessage: { $first: '$$ROOT' }
+                }
+            }
+        ]);
+
+        // Populate sender info for each message
+        const populatedMessages = await GroupMessage.populate(latestMessages, [
+            {
+                path: 'latestMessage.sender',
+                select: 'username profilePicture avatar'
+            }
+        ]);
+
+        // Add group info to each message
+        const messagesWithGroupInfo = populatedMessages.map(item => {
+            const group = userGroups.find(g => g._id.toString() === item._id.toString());
+            return {
+                ...item.latestMessage,
+                group: {
+                    _id: group._id,
+                    name: group.name,
+                    description: group.description
+                }
+            };
+        });
+
+        // Sort by latest message time
+        messagesWithGroupInfo.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        res.json(messagesWithGroupInfo);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
