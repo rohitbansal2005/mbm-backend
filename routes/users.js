@@ -415,7 +415,11 @@ router.post('/login', async (req, res) => {
 // Create a new user
 router.post('/', async (req, res) => {
     try {
-        const { username, email, password } = req.body;
+        const { username, email, password, inviteCode } = req.body;
+
+        if (inviteCode !== 'MBM2005') {
+            return res.status(400).json({ message: 'Invalid invite code. Only college students can register.' });
+        }
 
         // Check if user already exists
         let user = await User.findOne({ email });
