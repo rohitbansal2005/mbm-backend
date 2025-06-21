@@ -12,55 +12,41 @@ const auth = async (req, res, next) => {
             return res.status(401).json({ message: 'No authentication token, access denied' });
         }
 
-        const token = authHeader.replace('Bearer ', '');
-        if (!token) {
-            console.log('No token found in Authorization header');
-            return res.status(401).json({ message: 'No authentication token, access denied' });
-        }
-
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret_key_here');
-            console.log('Token decoded:', decoded);
-            
-            // Ensure _id exists in the token
-            if (!decoded._id) {
-                console.error('Token missing _id:', decoded);
-                return res.status(401).json({ 
-                    message: 'Invalid token format: missing _id',
-                    error: 'Token verification failed'
-                });
-            }
-
-            // Get user from database
-            const user = await User.findById(decoded._id);
-            if (!user) {
-                console.error('User not found:', decoded._id);
-                return res.status(401).json({ 
-                    message: 'User not found',
-                    error: 'Token verification failed'
-                });
-            }
-
-            // Set user info in request
-            req.user = {
-                _id: user._id,
-                userId: user._id,
-                username: user.username,
-                role: user.role || 'user'
-            };
-            console.log('Auth successful, user info set:', req.user);
-            next();
-        } catch (verifyError) {
-            console.error('Token verification failed:', {
-                name: verifyError.name,
-                message: verifyError.message,
-                stack: verifyError.stack
-            });
+        // Strip "Bearer " from the header
+        token = authHeader.split(' ')[1];
+        
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        console.log('Token decoded:', decoded ? '{...user data...}' : 'null');
+        
+        // Ensure _id exists in the token
+        if (!decoded._id) {
+            console.error('Token missing _id:', decoded);
             return res.status(401).json({ 
-                message: 'Token verification failed, authorization denied',
-                error: verifyError.message
+                message: 'Invalid token format: missing _id',
+                error: 'Token verification failed'
             });
         }
+
+        // Get user from database
+        const user = await User.findById(decoded._id);
+        if (!user) {
+            console.error('User not found:', decoded._id);
+            return res.status(401).json({ 
+                message: 'User not found',
+                error: 'Token verification failed'
+            });
+        }
+
+        // Set user info in request
+        req.user = {
+            _id: user._id,
+            userId: user._id,
+            username: user.username,
+            role: user.role || 'user'
+        };
+        console.log('Auth successful, user info set:', req.user);
+        next();
     } catch (error) {
         console.error('Auth middleware error:', {
             name: error.name,

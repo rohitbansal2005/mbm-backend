@@ -50,7 +50,7 @@ router.post('/', auth, upload.single('media'), async (req, res) => {
     });
 
     if (!req.body.content && !req.file) {
-      return res.status(400).json({ message: 'Post must have either content or media' });
+      return res.status(400).json({ msg: 'Please provide content or an image' });
     }
 
     let media = '';
@@ -189,7 +189,7 @@ router.delete('/:id', auth, async (req, res) => {
         console.log('=== Delete Post Request ===');
         console.log('Post ID:', req.params.id);
         console.log('User from auth:', req.user);
-        console.log('Auth token:', req.headers.authorization);
+        console.log('Auth token:', req.headers.authorization ? '[HIDDEN]' : 'none');
 
         if (!req.user || !req.user._id) {
             console.log('No user found in request');
@@ -259,7 +259,7 @@ router.put('/:id', auth, async (req, res) => {
         console.log('=== Edit Post Request ===');
         console.log('Post ID:', req.params.id);
         console.log('User from auth:', req.user);
-        console.log('Auth token:', req.headers.authorization);
+        console.log('Auth token:', req.headers.authorization ? '[HIDDEN]' : 'none');
 
         if (!req.user || !req.user._id) {
             console.log('No user found in request');
