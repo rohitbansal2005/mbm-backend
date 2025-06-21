@@ -92,4 +92,30 @@ router.get('/unread/count', auth, async (req, res) => {
     }
 });
 
+// @route   DELETE api/notifications/:id
+// @desc    Delete a notification
+// @access  Private
+router.delete('/:id', auth, async (req, res) => {
+    try {
+        const notification = await Notification.findById(req.params.id);
+
+        if (!notification) {
+            return res.status(404).json({ msg: 'Notification not found' });
+        }
+
+        // Ensure the user owns the notification they are trying to delete
+        if (notification.recipient.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ msg: 'User not authorized' });
+        }
+
+        await notification.deleteOne();
+
+        res.json({ msg: 'Notification removed' });
+    } catch (err) {
+        console.error(err.message);
+        // Avoid sending detailed error in production
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
