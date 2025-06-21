@@ -52,15 +52,49 @@ router.post('/:userId', auth, async (req, res) => {
         // Check if already following or request pending
         const existingFollow = await Follow.findOne({ 
             follower: followerId, 
-            following: userId,
-            status: { $in: ['pending', 'accepted'] }
+            following: userId
         });
         
         if (existingFollow) {
             if (existingFollow.status === 'pending') {
                 return res.status(400).json({ message: 'Follow request already pending' });
-            } else {
+            } else if (existingFollow.status === 'accepted') {
                 return res.status(400).json({ message: 'You are already following this user' });
+            } else if (existingFollow.status === 'rejected') {
+                // If previously rejected, update to pending and create new notification
+                console.log('Updating rejected follow request to pending');
+                existingFollow.status = 'pending';
+                await existingFollow.save();
+                
+                // Delete any existing follow_request notifications
+                await Notification.deleteMany({
+                    recipient: userId,
+                    sender: followerId,
+                    type: 'follow_request',
+                    relatedId: existingFollow._id
+                });
+                
+                // Create new notification for follow request
+                const followerUser = await User.findById(followerId);
+                const followerUsername = followerUser?.username || 'Someone';
+                
+                const notification = new Notification({
+                    recipient: userId,
+                    sender: followerId,
+                    type: 'follow_request',
+                    content: `${followerUsername} wants to follow you`,
+                    relatedId: existingFollow._id,
+                    onModel: 'Follow'
+                });
+
+                await notification.save();
+                console.log('New notification created for updated follow request:', notification);
+
+                res.status(200).json({
+                    message: 'Follow request sent successfully',
+                    follow: existingFollow
+                });
+                return;
             }
         }
 
@@ -111,39 +145,55 @@ router.post('/:userId', auth, async (req, res) => {
     }
 });
 
-// Unfollow a user
+// Unfollow a user or withdraw a follow request
 router.delete('/:userId', auth, async (req, res) => {
     try {
-        const { userId } = req.params;
-        const followerId = req.user.userId;
+        const { userId: followingId } = req.params;
+        const followerId = req.user._id;
 
+        // Find and delete the follow relationship
         const follow = await Follow.findOneAndDelete({
             follower: followerId,
-            following: userId
+            following: followingId
         });
 
         if (!follow) {
             return res.status(404).json({ message: 'Follow relationship not found' });
         }
 
-        // Update student models
-        const followerStudent = await Student.findOne({ user: followerId });
-        const followingStudent = await Student.findOne({ user: userId });
-
-        if (followerStudent && followingStudent) {
-            // Remove from following list
-            followerStudent.following = followerStudent.following.filter(id => id.toString() !== userId);
-            await followerStudent.save();
-
-            // Remove from followers list
-            followingStudent.followers = followingStudent.followers.filter(id => id.toString() !== followerId);
-            await followingStudent.save();
+        // If the status was 'pending', it was a follow request withdrawal
+        // Delete the corresponding notification
+        if (follow.status === 'pending') {
+            await Notification.deleteOne({
+                type: 'follow_request',
+                sender: followerId,
+                recipient: followingId,
+                relatedId: follow._id
+            });
+            return res.json({ message: 'Follow request withdrawn' });
         }
 
-        res.json({ message: 'Unfollowed successfully' });
+        // If the status was 'accepted', it was an unfollow action
+        // Update the follower and following counts
+        if (follow.status === 'accepted') {
+            const followerUser = await User.findById(followerId);
+            const followingUser = await User.findById(followingId);
+
+            if (followerUser && followingUser) {
+                followerUser.followingCount = Math.max(0, followerUser.followingCount - 1);
+                followingUser.followersCount = Math.max(0, followingUser.followersCount - 1);
+                await followerUser.save();
+                await followingUser.save();
+            }
+            return res.json({ message: 'Unfollowed successfully' });
+        }
+        
+        // For any other status, just confirm deletion
+        res.json({ message: 'Follow relationship removed' });
+
     } catch (error) {
-        console.error('Error in unfollow:', error);
-        res.status(500).json({ message: 'Error unfollowing user', error: error.message });
+        console.error('Error in unfollow/withdraw:', error);
+        res.status(500).json({ message: 'Error processing request', error: error.message });
     }
 });
 

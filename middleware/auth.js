@@ -45,6 +45,7 @@ const auth = async (req, res, next) => {
             req.user = {
                 _id: user._id,
                 userId: user._id,
+                username: user.username,
                 role: user.role || 'user'
             };
             console.log('Auth successful, user info set:', req.user);
