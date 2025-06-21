@@ -187,22 +187,19 @@ router.get('/followers/:userId', auth, async (req, res) => {
         const { userId } = req.params;
         const requesterId = req.user._id;
 
-        console.log('--- Get Followers Request ---');
-        console.log('Target User ID:', userId);
-        console.log('Requester User ID:', requesterId);
-
-        const targetStudent = await Student.findOne({ user: userId });
-        if (!targetStudent) {
-            console.log('Error: Target student not found.');
+        // 1. First, ensure the target user exists.
+        const targetUser = await User.findById(userId);
+        if (!targetUser) {
             return res.status(404).json({ message: 'User not found' });
         }
+
+        // 2. Fetch student profile to check for privacy settings (it may not exist).
+        const targetStudent = await Student.findOne({ user: userId });
         
         const isOwner = requesterId.toString() === userId.toString();
-        const privacySetting = targetStudent.privacy?.followers || 'public';
+        // 3. Default to public if no student profile or privacy setting exists.
+        const privacySetting = targetStudent?.privacy?.followers || 'public';
         let canView = false;
-
-        console.log('Is Owner:', isOwner);
-        console.log('Privacy Setting:', privacySetting);
 
         if (isOwner) {
             canView = true;
@@ -212,19 +209,14 @@ router.get('/followers/:userId', auth, async (req, res) => {
                     canView = true;
                     break;
                 case 'friends':
-                    console.log('Checking for mutual follow...');
                     const userFollowsTarget = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
                     const targetFollowsUser = await Follow.findOne({ follower: userId, following: requesterId, status: 'accepted' });
-                    console.log('Requester follows target:', !!userFollowsTarget);
-                    console.log('Target follows requester:', !!targetFollowsUser);
                     if (userFollowsTarget && targetFollowsUser) {
                         canView = true;
                     }
                     break;
                 case 'private':
-                    console.log('Checking if requester is a follower...');
                     const isFollower = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
-                    console.log('Requester is a follower:', !!isFollower);
                     if (isFollower) {
                         canView = true;
                     }
@@ -232,14 +224,10 @@ router.get('/followers/:userId', auth, async (req, res) => {
             }
         }
 
-        console.log('Final canView decision:', canView);
-
         if (!canView) {
-            console.log('Result: Access denied.');
             return res.status(403).json({ message: 'Followers list is private.' });
         }
         
-        console.log('Result: Access granted. Fetching followers...');
         const followers = await Follow.find({ 
             following: userId,
             status: 'accepted'
@@ -250,25 +238,11 @@ router.get('/followers/:userId', auth, async (req, res) => {
         })
         .sort({ createdAt: -1 });
 
-        // Format the response to ensure all user data is properly structured
-        const formattedFollowers = followers.map(follow => {
-            if (!follow.follower) return null;
-            return {
-                _id: follow._id,
-                status: follow.status,
-                follower: {
-                    _id: follow.follower._id,
-                    username: follow.follower.username || 'Unknown User',
-                    fullName: follow.follower.fullName || '',
-                    profilePicture: follow.follower.profilePicture || '',
-                    avatar: follow.follower.avatar || ''
-                }
-            };
-        }).filter(follow => follow !== null);
+        res.json(followers.map(f => f.follower));
 
-        res.json(formattedFollowers);
     } catch (error) {
-        res.status(500).json({ message: 'Error getting followers', error: error.message });
+        console.error('Error fetching followers list:', error);
+        res.status(500).json({ message: 'Error fetching followers list' });
     }
 });
 
@@ -278,22 +252,19 @@ router.get('/following/:userId', auth, async (req, res) => {
         const { userId } = req.params;
         const requesterId = req.user._id;
 
-        console.log('--- Get Following Request ---');
-        console.log('Target User ID:', userId);
-        console.log('Requester User ID:', requesterId);
-
-        const targetStudent = await Student.findOne({ user: userId });
-        if (!targetStudent) {
-            console.log('Error: Target student not found.');
+        // 1. First, ensure the target user exists.
+        const targetUser = await User.findById(userId);
+        if (!targetUser) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        const isOwner = requesterId.toString() === userId.toString();
-        const privacySetting = targetStudent.privacy?.following || 'public';
-        let canView = false;
+        // 2. Fetch student profile to check for privacy settings (it may not exist).
+        const targetStudent = await Student.findOne({ user: userId });
 
-        console.log('Is Owner:', isOwner);
-        console.log('Privacy Setting:', privacySetting);
+        const isOwner = requesterId.toString() === userId.toString();
+        // 3. Default to public if no student profile or privacy setting exists.
+        const privacySetting = targetStudent?.privacy?.following || 'public';
+        let canView = false;
 
         if (isOwner) {
             canView = true;
@@ -303,19 +274,14 @@ router.get('/following/:userId', auth, async (req, res) => {
                     canView = true;
                     break;
                 case 'friends':
-                    console.log('Checking for mutual follow...');
                     const userFollowsTarget = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
                     const targetFollowsUser = await Follow.findOne({ follower: userId, following: requesterId, status: 'accepted' });
-                    console.log('Requester follows target:', !!userFollowsTarget);
-                    console.log('Target follows requester:', !!targetFollowsUser);
                     if (userFollowsTarget && targetFollowsUser) {
                         canView = true;
                     }
                     break;
                 case 'private':
-                    console.log('Checking if requester is a follower...');
                     const isFollower = await Follow.findOne({ follower: requesterId, following: userId, status: 'accepted' });
-                    console.log('Requester is a follower:', !!isFollower);
                     if (isFollower) {
                         canView = true;
                     }
@@ -323,42 +289,25 @@ router.get('/following/:userId', auth, async (req, res) => {
             }
         }
 
-        console.log('Final canView decision:', canView);
-
         if (!canView) {
-            console.log('Result: Access denied.');
             return res.status(403).json({ message: 'Following list is private.' });
         }
-
-        console.log('Result: Access granted. Fetching following list...');
+        
         const following = await Follow.find({ 
             follower: userId,
             status: 'accepted'
         })
         .populate({
             path: 'following',
-            select: 'username profilePicture avatar _id'
+            select: 'username fullName profilePicture avatar _id'
         })
         .sort({ createdAt: -1 });
 
-        // Format the response to ensure all user data is properly structured
-        const formattedFollowing = following.map(follow => {
-            if (!follow.following) return null;
-            return {
-                _id: follow._id,
-                status: follow.status,
-                following: {
-                    _id: follow.following._id,
-                    username: follow.following.username || 'Unknown User',
-                    profilePicture: follow.following.profilePicture || '',
-                    avatar: follow.following.avatar || ''
-                }
-            };
-        }).filter(follow => follow !== null);
-
-        res.json(formattedFollowing);
+        res.json(following.map(f => f.following));
+        
     } catch (error) {
-        res.status(500).json({ message: 'Error getting following list', error: error.message });
+        console.error('Error fetching following list:', error);
+        res.status(500).json({ message: 'Error fetching following list' });
     }
 });
 
