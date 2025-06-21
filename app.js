@@ -1,9 +1,20 @@
 const express = require('express');
+const cors = require('cors');
 const app = express();
 const settingsRoutes = require('./routes/settings');
 const notificationRoutes = require('./routes/notifications');
 const reportRoutes = require('./routes/reports');
 const postRoutes = require('./routes/posts');
+
+// CORS configuration
+app.use(cors({
+  origin: [
+    'https://mbmconnect.vercel.app',
+    'http://localhost:3000',
+    'https://mbmconnect.onrender.com'
+  ],
+  credentials: true
+}));
 
 // ... other middleware like bodyParser, cors, etc.
 app.use(express.json());
