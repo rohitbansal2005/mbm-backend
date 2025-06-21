@@ -193,7 +193,29 @@ router.get('/followers/:userId', auth, async (req, res) => {
         const isOwner = req.user._id.toString() === userId.toString();
         const isFollower = targetStudent.followers.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
         const isMutualFriend = isFollower && targetStudent.following.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
-        if (!isOwner && targetStudent.privacy?.followers === 'private' && !isMutualFriend) {
+
+        const privacySetting = targetStudent.privacy?.followers || 'public';
+        let canView = false;
+
+        if (isOwner) {
+            canView = true;
+        } else {
+            switch (privacySetting) {
+                case 'public':
+                    canView = true;
+                    break;
+                case 'friends':
+                    if (isMutualFriend) {
+                        canView = true;
+                    }
+                    break;
+                case 'private':
+                    // Only owner can view private lists
+                    break;
+            }
+        }
+
+        if (!canView) {
             return res.status(403).json({ message: 'Followers list is private.' });
         }
         const followers = await Follow.find({ 
@@ -240,7 +262,29 @@ router.get('/following/:userId', auth, async (req, res) => {
         const isOwner = req.user._id.toString() === userId.toString();
         const isFollower = targetStudent.followers.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
         const isMutualFriend = isFollower && targetStudent.following.filter(f => f).some(f => f._id.toString() === req.user._id.toString());
-        if (!isOwner && targetStudent.privacy?.following === 'private' && !isMutualFriend) {
+
+        const privacySetting = targetStudent.privacy?.following || 'public';
+        let canView = false;
+
+        if (isOwner) {
+            canView = true;
+        } else {
+            switch (privacySetting) {
+                case 'public':
+                    canView = true;
+                    break;
+                case 'friends':
+                    if (isMutualFriend) {
+                        canView = true;
+                    }
+                    break;
+                case 'private':
+                    // Only owner can view private lists
+                    break;
+            }
+        }
+
+        if (!canView) {
             return res.status(403).json({ message: 'Following list is private.' });
         }
         const following = await Follow.find({ 
