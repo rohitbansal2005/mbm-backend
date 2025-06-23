@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const HelpCenterMessage = require('../models/HelpCenterMessage');
+const Report = require('../models/Report');
 
 // Dummy Help Center Data
 const helpCenterData = [
@@ -70,24 +72,41 @@ router.get('/faqs', (req, res) => {
   res.json(faqs);
 });
 
-// In-memory array for demo (production में DB use करें)
-const messages = [];
-
 // POST /api/help-center/message
-router.post('/message', (req, res) => {
+router.post('/message', async (req, res) => {
   const { name, email, message } = req.body;
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
-  // Save message (in-memory for now)
-  messages.push({ name, email, message, createdAt: new Date() });
-  res.json({ success: true, msg: 'Your message has been sent to admin!' });
+  try {
+    await HelpCenterMessage.create({ name, email, message });
+
+    // Also save as admin user report
+    let reporter = null;
+    if (req.user && req.user._id) {
+      reporter = req.user._id;
+    }
+    await Report.create({
+      reporter,
+      itemType: 'Help',
+      reason: 'Other',
+      description: message
+    });
+    res.json({ success: true, msg: 'Your message has been sent to admin!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save message.' });
+  }
 });
 
 // GET all user queries/messages (admin only)
-router.get('/messages', (req, res) => {
+router.get('/messages', async (req, res) => {
   // TODO: Add admin authentication middleware here!
-  res.json(messages);
+  try {
+    const allMessages = await HelpCenterMessage.find().sort({ createdAt: -1 });
+    res.json(allMessages);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch messages.' });
+  }
 });
 
 module.exports = router;
