@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const HelpCenterMessage = require('../models/HelpCenterMessage');
 const Report = require('../models/Report');
+const Filter = require('bad-words');
+const filter = new Filter();
 
 // Dummy Help Center Data
 const helpCenterData = [
@@ -80,6 +82,9 @@ router.post('/message', async (req, res) => {
   }
   if (typeof message !== 'string' || message.trim().length < 10) {
     return res.status(400).json({ error: 'Message must be at least 10 characters.' });
+  }
+  if (filter.isProfane(message)) {
+    return res.status(400).json({ error: 'Inappropriate language is not allowed.' });
   }
   try {
     await HelpCenterMessage.create({ name, email, message });

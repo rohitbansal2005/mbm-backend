@@ -4,6 +4,8 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { check, validationResult } = require('express-validator');
+const Filter = require('bad-words');
+const filter = new Filter();
 
 // Helper function to format message with proper image URLs
 const formatMessage = (message) => {
@@ -101,6 +103,10 @@ router.post(
             return res.status(400).json({ errors: errors.array() });
         }
 
+        if (filter.isProfane(req.body.text)) {
+            return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
+        }
+
         try {
             const recipient = await User.findById(req.params.userId);
             if (!recipient) {
@@ -151,6 +157,10 @@ router.put(
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
+        }
+
+        if (filter.isProfane(req.body.text)) {
+            return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
         }
 
         try {

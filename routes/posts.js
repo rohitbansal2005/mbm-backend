@@ -8,6 +8,8 @@ const Report = require('../models/Report');
 const createNotification = require('../utils/createNotification');
 // Use Cloudinary multer config for uploads
 const upload = require('../config/multer');
+const Filter = require('bad-words');
+const filter = new Filter();
 
 // In-memory array for demo (use DB in production)
 const postReports = [];
@@ -75,6 +77,9 @@ router.post('/', auth, upload.single('media'), async (req, res) => {
 
     if (!req.body.content && !req.file) {
       return res.status(400).json({ msg: 'Please provide content or an image' });
+    }
+    if (req.body.content && filter.isProfane(req.body.content)) {
+      return res.status(400).json({ msg: 'Inappropriate language is not allowed in posts.' });
     }
 
     let media = '';
@@ -172,6 +177,10 @@ router.post('/:id/comment', auth, async (req, res) => {
         const post = await Post.findById(req.params.id);
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
+        }
+
+        if (filter.isProfane(req.body.text)) {
+            return res.status(400).json({ message: 'Inappropriate language is not allowed in comments.' });
         }
 
         post.comments.push({

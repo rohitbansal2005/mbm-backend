@@ -10,6 +10,8 @@ const Message = require('../models/Message');
 const fs = require('fs');
 const upload = require('../config/multer'); // Use Cloudinary multer config
 const GroupMessage = require('../models/GroupMessage');
+const Filter = require('bad-words');
+const filter = new Filter();
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -432,6 +434,9 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         if (!group.members.map(m => m.toString()).includes(req.user._id.toString())) {
              return res.status(403).json({ msg: 'You are not a member of this group' });
         }
+        if (filter.isProfane(req.body.text)) {
+            return res.status(400).json({ msg: 'Inappropriate language is not allowed in group messages.' });
+        }
         const newMessage = new GroupMessage({
             group: req.params.groupId,
             sender: req.user._id,
@@ -471,6 +476,9 @@ router.put('/:groupId/messages/:messageId', auth, async (req, res) => {
         // Only sender can edit
         if (message.sender.toString() !== req.user._id.toString()) {
             return res.status(403).json({ msg: 'Not authorized to edit this message' });
+        }
+        if (filter.isProfane(req.body.text)) {
+            return res.status(400).json({ msg: 'Inappropriate language is not allowed in group messages.' });
         }
         message.text = req.body.text;
         await message.save();

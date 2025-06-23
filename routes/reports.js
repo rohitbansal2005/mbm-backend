@@ -3,6 +3,8 @@ const router = express.Router();
 const Report = require('../models/Report');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
+const Filter = require('bad-words');
+const filter = new Filter();
 
 // Get all reports (admin only)
 router.get('/', [auth, admin], async (req, res) => {
@@ -38,6 +40,10 @@ router.post('/', auth, async (req, res) => {
             return res.status(400).json({ 
                 message: 'Missing required fields' 
             });
+        }
+
+        if (filter.isProfane(description)) {
+            return res.status(400).json({ message: 'Inappropriate language is not allowed in report descriptions.' });
         }
 
         const report = new Report({
