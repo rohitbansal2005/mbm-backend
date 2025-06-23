@@ -197,6 +197,15 @@ router.post('/:id/comment', auth, async (req, res) => {
         });
 
         const updatedPost = await post.save();
+        // Get the new comment (last in array)
+        const newComment = updatedPost.comments[updatedPost.comments.length - 1];
+        // Populate author for the new comment
+        await updatedPost.populate('comments.author', 'username profilePicture');
+        // Emit socket event for new comment
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('commentAdded', { postId: req.params.id, comment: newComment });
+        }
         
         // Create notification for comment (only if not commenting on own post)
         if (post.author.toString() !== req.user._id.toString()) {
@@ -215,8 +224,6 @@ router.post('/:id/comment', auth, async (req, res) => {
             }
         }
         
-        // Populate author for the new comment
-        await updatedPost.populate('comments.author', 'username profilePicture');
         res.json(updatedPost);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -275,6 +282,12 @@ router.delete('/:id', auth, async (req, res) => {
         if (!deletedPost) {
             console.log('Post deletion failed - no post returned');
             return res.status(404).json({ message: 'Post not found or already deleted' });
+        }
+
+        // Emit Socket.IO event for post deletion
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('postDeleted', { postId: deletedPost._id });
         }
 
         console.log('Post deleted successfully');
@@ -387,6 +400,11 @@ router.delete('/:postId/comment/:commentId', auth, async (req, res) => {
     );
     await post.save();
     await post.populate('comments.author', 'username profilePicture');
+    // Emit socket event for comment deletion
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('commentDeleted', { postId: req.params.postId, commentId: req.params.commentId });
+    }
     res.json(post);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -413,6 +431,11 @@ router.put('/:postId/comment/:commentId', auth, async (req, res) => {
     comment.editedAt = new Date();
     await post.save();
     await post.populate('comments.author', 'username profilePicture');
+    // Emit socket event for comment edit
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('commentEdited', { postId: req.params.postId, comment });
+    }
     res.json(post);
   } catch (error) {
     res.status(400).json({ message: error.message });
