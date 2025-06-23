@@ -13,6 +13,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const compression = require('compression');
 require('dotenv').config();
 const { initializeSocket } = require('./socket');
 
@@ -250,3 +251,6 @@ process.on('SIGINT', async () => {
         process.exit(1);
     }
 });
+
+// Add compression middleware
+app.use(compression());

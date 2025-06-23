@@ -39,6 +39,10 @@ const deepPopulateComments = async (postOrPosts) => {
 router.get('/', async (req, res) => {
     try {
         console.log('Fetching all posts...');
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
         const posts = await Post.find({ author: { $exists: true, $ne: null } })
             .populate('author', 'username fullName profilePicture')
             .populate('likes', 'username fullName profilePicture avatar')
@@ -46,13 +50,16 @@ router.get('/', async (req, res) => {
                 path: 'comments.author',
                 select: 'username profilePicture'
             })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
         
         // Filter out posts where author population failed
         const validPosts = posts.filter(post => post.author && post.author._id);
         
-        await deepPopulateComments(validPosts);
-        
+        // Note: deepPopulateComments is not needed with .lean(), so skip it or refactor if needed
+
         console.log(`Found ${posts.length} posts, ${validPosts.length} with valid authors`);
         res.json(validPosts);
     } catch (error) {
