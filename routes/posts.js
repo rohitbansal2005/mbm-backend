@@ -172,6 +172,7 @@ router.put('/:id/like', auth, async (req, res) => {
 
         const updatedPost = await post.save();
         await updatedPost.populate('author', 'username fullName profilePicture');
+        await updatedPost.populate('likes', 'username fullName profilePicture avatar');
         res.json(updatedPost);
     } catch (error) {
         res.status(400).json({ message: error.message });
