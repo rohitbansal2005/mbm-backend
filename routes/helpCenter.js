@@ -78,6 +78,9 @@ router.post('/message', async (req, res) => {
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'All fields are required.' });
   }
+  if (typeof message !== 'string' || message.trim().length < 10) {
+    return res.status(400).json({ error: 'Message must be at least 10 characters.' });
+  }
   try {
     await HelpCenterMessage.create({ name, email, message });
 
