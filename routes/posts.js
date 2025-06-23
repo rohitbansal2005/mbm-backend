@@ -22,24 +22,13 @@ const deepPopulateComments = async (postOrPosts) => {
         path: 'comments.author',
         select: 'username fullName profilePicture avatar'
       });
+      await post.populate({
+        path: 'comments.replies.author',
+        select: 'username fullName profilePicture avatar'
+      });
     } catch (err) {
-      console.error('Error populating comments.author:', err);
+      console.error('Error populating comments or replies:', err);
     }
-    // Deep populate replies.author for each comment
-    await Promise.all((post.comments || []).map(async (comment, idx) => {
-      if (!comment || !comment.replies) return;
-      try {
-        if (Array.isArray(comment.replies) && comment.replies.length > 0) {
-          await comment.populate({
-            path: 'replies.author',
-            select: 'username fullName profilePicture avatar',
-            model: 'User'
-          });
-        }
-      } catch (err) {
-        console.error(`Error populating replies.author for comment[${idx}]:`, err);
-      }
-    }));
   }));
   return isArray ? posts : posts[0];
 };
