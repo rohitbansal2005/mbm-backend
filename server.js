@@ -175,7 +175,7 @@ app.use('/uploads', (req, res, next) => {
 
 // Add default route for '/'
 app.get('/', (req, res) => {
-  res.send('MBM Connect Backend is running!');
+  res.send('MBMConnect Backend is running!');
 });
 
 // Error handling middleware

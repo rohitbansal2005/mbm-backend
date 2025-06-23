@@ -12,12 +12,37 @@ const upload = require('../config/multer');
 // In-memory array for demo (use DB in production)
 const postReports = [];
 
+// Helper for deep population of comments and replies
+const deepPopulateComments = async (postOrPosts) => {
+  const mongoose = require('mongoose');
+  const isArray = Array.isArray(postOrPosts);
+  const posts = isArray ? postOrPosts : [postOrPosts];
+  await Promise.all(posts.map(async (post) => {
+    await post.populate({
+      path: 'comments.author',
+      select: 'username fullName profilePicture avatar'
+    });
+    // Deep populate replies.author for each comment
+    post.comments.forEach(comment => {
+      if (comment.replies && comment.replies.length > 0) {
+        comment.populate({
+          path: 'replies.author',
+          select: 'username fullName profilePicture avatar',
+          model: 'User'
+        });
+      }
+    });
+  }));
+  return isArray ? posts : posts[0];
+};
+
 // Get all posts
 router.get('/', async (req, res) => {
     try {
         console.log('Fetching all posts...');
         const posts = await Post.find({ author: { $exists: true, $ne: null } })
             .populate('author', 'username fullName profilePicture')
+            .populate('likes', 'username fullName profilePicture avatar')
             .populate({
                 path: 'comments.author',
                 select: 'username profilePicture'
@@ -26,6 +51,8 @@ router.get('/', async (req, res) => {
         
         // Filter out posts where author population failed
         const validPosts = posts.filter(post => post.author && post.author._id);
+        
+        await deepPopulateComments(validPosts);
         
         console.log(`Found ${posts.length} posts, ${validPosts.length} with valid authors`);
         res.json(validPosts);
@@ -488,12 +515,14 @@ router.get('/user/:userId', auth, async (req, res) => {
     // If no student profile, allow (legacy users)
     const posts = await Post.find({ author: userId })
       .populate('author', 'username fullName profilePicture')
+      .populate('likes', 'username fullName profilePicture avatar')
       .populate({
         path: 'comments.author',
         select: 'username profilePicture'
       })
       .sort({ createdAt: -1 });
     console.log('[DEBUG] Returning', posts.length, 'posts');
+    await deepPopulateComments(posts);
     res.json(posts);
   } catch (error) {
     console.error('Error fetching user posts:', error);
@@ -555,6 +584,7 @@ router.get('/saved', auth, async (req, res) => {
             _id: { $in: user.savedPosts }
         })
         .populate('author', 'username fullName profilePicture')
+        .populate('likes', 'username fullName profilePicture avatar')
         .populate({
             path: 'comments.author',
             select: 'username profilePicture'
@@ -562,6 +592,7 @@ router.get('/saved', auth, async (req, res) => {
         .sort({ createdAt: -1 });
 
         console.log(`Found ${savedPosts.length} saved posts`);
+        await deepPopulateComments(savedPosts);
         res.json(savedPosts);
     } catch (error) {
         console.error('Error fetching saved posts:', error);
@@ -605,8 +636,10 @@ router.get('/:id', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
       .populate('author', 'username fullName profilePicture avatar')
+      .populate('likes', 'username fullName profilePicture avatar')
       .populate('comments.author', 'username profilePicture avatar');
     if (!post) return res.status(404).json({ message: 'Post not found' });
+    await deepPopulateComments(post);
     res.json(post);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
