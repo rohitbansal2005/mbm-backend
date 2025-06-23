@@ -23,15 +23,15 @@ const deepPopulateComments = async (postOrPosts) => {
       select: 'username fullName profilePicture avatar'
     });
     // Deep populate replies.author for each comment
-    post.comments.forEach(comment => {
+    await Promise.all(post.comments.map(async (comment) => {
       if (comment.replies && comment.replies.length > 0) {
-        comment.populate({
+        await comment.populate({
           path: 'replies.author',
           select: 'username fullName profilePicture avatar',
           model: 'User'
         });
       }
-    });
+    }));
   }));
   return isArray ? posts : posts[0];
 };
