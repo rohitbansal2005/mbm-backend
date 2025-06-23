@@ -94,6 +94,7 @@ router.post('/message', async (req, res) => {
     });
     res.json({ success: true, msg: 'Your message has been sent to admin!' });
   } catch (err) {
+    console.error('Help Center Report Error:', err);
     res.status(500).json({ error: 'Failed to save message.' });
   }
 });

@@ -4,7 +4,7 @@ const reportSchema = new mongoose.Schema({
     reporter: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: false
     },
     reportedItem: {
         type: mongoose.Schema.Types.ObjectId,
