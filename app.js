@@ -6,6 +6,7 @@ const settingsRoutes = require('./routes/settings');
 const notificationRoutes = require('./routes/notifications');
 const reportRoutes = require('./routes/reports');
 const postRoutes = require('./routes/posts');
+const ogRoutes = require('./og');
 
 // CORS configuration
 app.use(cors({
@@ -31,6 +32,9 @@ app.use('/api/reports', reportRoutes);
 
 // Register the posts route
 app.use('/api/posts', postRoutes);
+
+// Register the og routes
+app.use('/', ogRoutes);
 
 // ... other routes
 
