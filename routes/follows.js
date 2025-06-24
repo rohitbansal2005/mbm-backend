@@ -6,6 +6,7 @@ const Student = require('../models/Student');
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const mongoose = require('mongoose');
+const isBlocked = require('../utils/isBlocked');
 
 console.log('Follows routes loaded');
 
@@ -47,6 +48,11 @@ router.post('/:userId', auth, async (req, res) => {
         if (!userToFollow) {
             console.log('User not found:', userId);
             return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Block check: don't allow follow if either user has blocked the other
+        if (await isBlocked(followerId, userId) || await isBlocked(userId, followerId)) {
+            return res.status(403).json({ message: 'You cannot follow this user.' });
         }
 
         // Check if already following or request pending
@@ -187,6 +193,13 @@ router.get('/followers/:userId', auth, async (req, res) => {
         const { userId } = req.params;
         const requesterId = req.user._id;
 
+        // Block check: don't show followers if either user has blocked the other
+        if (requesterId.toString() !== userId.toString()) {
+            if (await isBlocked(requesterId, userId) || await isBlocked(userId, requesterId)) {
+                return res.status(403).json({ message: 'You cannot view this user.' });
+            }
+        }
+
         // 1. First, ensure the target user exists.
         const targetUser = await User.findById(userId);
         if (!targetUser) {
@@ -252,6 +265,13 @@ router.get('/following/:userId', auth, async (req, res) => {
     try {
         const { userId } = req.params;
         const requesterId = req.user._id;
+
+        // Block check: don't show following if either user has blocked the other
+        if (requesterId.toString() !== userId.toString()) {
+            if (await isBlocked(requesterId, userId) || await isBlocked(userId, requesterId)) {
+                return res.status(403).json({ message: 'You cannot view this user.' });
+            }
+        }
 
         // 1. First, ensure the target user exists.
         const targetUser = await User.findById(userId);

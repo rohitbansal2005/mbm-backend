@@ -10,6 +10,7 @@ const createNotification = require('../utils/createNotification');
 const upload = require('../config/multer');
 const Filter = require('bad-words');
 const filter = new Filter();
+const isBlocked = require('../utils/isBlocked');
 
 // In-memory array for demo (use DB in production)
 const postReports = [];
@@ -57,11 +58,29 @@ router.get('/', async (req, res) => {
         
         // Filter out posts where author population failed
         const validPosts = posts.filter(post => post.author && post.author._id);
-        
-        // Note: deepPopulateComments is not needed with .lean(), so skip it or refactor if needed
-
-        console.log(`Found ${posts.length} posts, ${validPosts.length} with valid authors`);
-        res.json(validPosts);
+        // Filter out posts where requester is blocked by author or has blocked author
+        const requesterId = req.user?._id;
+        let filteredPosts = validPosts;
+        if (requesterId) {
+            filteredPosts = validPosts.filter(post => {
+                // Block check: skip post if either user has blocked the other
+                if (!post.author._id) return false;
+                const authorId = post.author._id.toString();
+                if (authorId === requesterId.toString()) return true;
+                // Use isBlocked utility synchronously (assume it is async, so use Promise.all below if needed)
+                return true; // Will filter below if needed
+            });
+            // Actually filter with async isBlocked
+            const blockChecks = await Promise.all(filteredPosts.map(async post => {
+                const authorId = post.author._id.toString();
+                if (authorId === requesterId.toString()) return true;
+                const blocked1 = await isBlocked(requesterId, authorId);
+                const blocked2 = await isBlocked(authorId, requesterId);
+                return !(blocked1 || blocked2);
+            }));
+            filteredPosts = filteredPosts.filter((_, idx) => blockChecks[idx]);
+        }
+        res.json(filteredPosts);
     } catch (error) {
         console.error('Error fetching posts:', error);
         res.status(500).json({ 
@@ -143,7 +162,13 @@ router.put('/:id/like', auth, async (req, res) => {
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
         }
-
+        // Block check: don't allow like if either user has blocked the other
+        const authorId = post.author.toString();
+        const requesterId = req.user._id.toString();
+        if (await isBlocked(requesterId, authorId) || await isBlocked(authorId, requesterId)) {
+            return res.status(403).json({ message: 'You cannot like this post.' });
+        }
+        
         const likeIndex = post.likes.indexOf(req.user._id);
         const wasLiked = likeIndex !== -1;
         
@@ -185,6 +210,12 @@ router.post('/:id/comment', auth, async (req, res) => {
         const post = await Post.findById(req.params.id);
         if (!post) {
             return res.status(404).json({ message: 'Post not found' });
+        }
+        // Block check: don't allow comment if either user has blocked the other
+        const authorId = post.author.toString();
+        const requesterId = req.user._id.toString();
+        if (await isBlocked(requesterId, authorId) || await isBlocked(authorId, requesterId)) {
+            return res.status(403).json({ message: 'You cannot comment on this post.' });
         }
 
         if (filter.isProfane(req.body.text)) {

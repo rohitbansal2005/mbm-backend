@@ -12,6 +12,7 @@ const upload = require('../config/multer'); // Use Cloudinary multer config
 const GroupMessage = require('../models/GroupMessage');
 const Filter = require('bad-words');
 const filter = new Filter();
+const createNotification = require('../utils/createNotification');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -444,6 +445,32 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         });
         await newMessage.save();
         await newMessage.populate('sender', 'username profilePicture avatar');
+        // Mention detection and notification
+        const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+        const mentionedUsernames = [];
+        let match;
+        while ((match = mentionRegex.exec(req.body.text)) !== null) {
+            mentionedUsernames.push(match[1]);
+        }
+        if (mentionedUsernames.length > 0) {
+            // Find mentioned users who are group members
+            const mentionedUsers = await User.find({
+                username: { $in: mentionedUsernames },
+                _id: { $in: group.members }
+            });
+            for (const user of mentionedUsers) {
+                if (user._id.toString() !== req.user._id.toString()) {
+                    await createNotification(
+                        user._id,
+                        req.user._id,
+                        'group_mention',
+                        'You were mentioned in a group message',
+                        newMessage._id,
+                        'Group'
+                    );
+                }
+            }
+        }
         const io = req.app.get('io');
         if (io) {
             // Include group info in the socket event

@@ -6,6 +6,7 @@ const auth = require('../middleware/auth');
 const { check, validationResult } = require('express-validator');
 const Filter = require('bad-words');
 const filter = new Filter();
+const isBlocked = require('../utils/isBlocked');
 
 // Helper function to format message with proper image URLs
 const formatMessage = (message) => {
@@ -111,6 +112,13 @@ router.post(
             const recipient = await User.findById(req.params.userId);
             if (!recipient) {
                 return res.status(404).json({ message: 'User not found' });
+            }
+
+            // Block check: don't allow message if either user has blocked the other
+            const senderId = req.user._id.toString();
+            const recipientId = req.params.userId.toString();
+            if (await isBlocked(senderId, recipientId) || await isBlocked(recipientId, senderId)) {
+                return res.status(403).json({ message: 'You cannot send messages to this user.' });
             }
 
             const newMessage = new Message({

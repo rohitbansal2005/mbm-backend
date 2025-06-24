@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 const { io } = require('../server'); // ya jahan aapka io export hua hai
+const createNotification = require('../utils/createNotification');
+const User = require('../models/User');
 
 // Comment schema with timestamps
 const commentSchema = new mongoose.Schema({
@@ -44,6 +46,30 @@ router.post('/:id/comment', async (req, res) => {
     });
 
     await comment.save();
+
+    // Mention detection and notification
+    const mentionRegex = /@([a-zA-Z0-9_]+)/g;
+    const mentionedUsernames = [];
+    let match;
+    while ((match = mentionRegex.exec(content)) !== null) {
+      mentionedUsernames.push(match[1]);
+    }
+    if (mentionedUsernames.length > 0) {
+      // Find mentioned users
+      const mentionedUsers = await User.find({ username: { $in: mentionedUsernames } });
+      for (const user of mentionedUsers) {
+        if (user._id.toString() !== req.user._id.toString()) {
+          await createNotification(
+            user._id,
+            req.user._id,
+            'comment_mention',
+            'You were mentioned in a comment',
+            comment._id,
+            'Post'
+          );
+        }
+      }
+    }
 
     // Emit the new comment to all connected clients
     io.emit('receiveComment', { postId: id, comment: comment });

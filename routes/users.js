@@ -68,9 +68,17 @@ router.get('/search', auth, async (req, res) => {
             ]
         }).select('_id username profilePicture avatar');
 
-        // For each user, get their Student profile
+        // For each user, get their Student profile and filter out blocked users
         const results = await Promise.all(users.map(async user => {
             const student = await Student.findOne({ user: user._id });
+            // Block check: skip if either user has blocked the other
+            const requesterId = req.user._id.toString();
+            const userId = user._id.toString();
+            if (requesterId !== userId) {
+                if (await isBlocked(requesterId, userId) || await isBlocked(userId, requesterId)) {
+                    return null;
+                }
+            }
             return {
                 _id: user._id,
                 username: user.username,
@@ -84,7 +92,7 @@ router.get('/search', auth, async (req, res) => {
             };
         }));
 
-        res.json(results);
+        res.json(results.filter(Boolean));
     } catch (error) {
         console.error('Error searching users:', error);
         res.status(500).json({ message: 'Error searching users' });

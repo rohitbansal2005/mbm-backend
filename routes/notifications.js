@@ -2,16 +2,26 @@ const express = require('express');
 const router = express.Router();
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
+const isBlocked = require('../utils/isBlocked');
 
 // Get all notifications for the current user
 router.get('/', auth, async (req, res) => {
     try {
         const userId = req.user._id || req.user.userId;
-        const notifications = await Notification.find({ recipient: userId })
+        let notifications = await Notification.find({ recipient: userId })
             .populate('sender', 'username profilePicture')
             .sort({ createdAt: -1 })
             .limit(50);
-
+        // Filter out notifications from blocked users
+        notifications = await Promise.all(notifications.map(async n => {
+            if (!n.sender) return null;
+            const senderId = n.sender._id.toString();
+            if (await isBlocked(userId, senderId) || await isBlocked(senderId, userId)) {
+                return null;
+            }
+            return n;
+        }));
+        notifications = notifications.filter(Boolean);
         res.json(notifications);
     } catch (error) {
         console.error('Error fetching notifications:', error);
