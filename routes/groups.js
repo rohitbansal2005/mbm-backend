@@ -13,6 +13,7 @@ const GroupMessage = require('../models/GroupMessage');
 const Filter = require('bad-words');
 const filter = new Filter();
 const createNotification = require('../utils/createNotification');
+const cloudinary = require('../config/cloudinary');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -47,6 +48,16 @@ function checkFileType(file, cb) {
     } else {
         cb('Error: Images Only!');
     }
+}
+
+// Helper to extract Cloudinary public_id from URL
+function extractCloudinaryPublicId(url) {
+    if (!url) return null;
+    // Example: https://res.cloudinary.com/demo/image/upload/v1234567890/folder/filename.jpg
+    // public_id: folder/filename (without extension)
+    const parts = url.split('/');
+    const file = parts.slice(-2).join('/').split('.')[0];
+    return file;
 }
 
 // @route   POST api/groups
@@ -186,7 +197,20 @@ router.put('/:id', [auth, upload.single('coverImage')], async (req, res) => {
         group.tags = tags ? tags.split(',').map(tag => tag.trim()) : group.tags;
         group.allowMemberPosts = allowMemberPosts === 'true' || group.allowMemberPosts;
         group.allowMemberChat = allowMemberChat === 'true' || group.allowMemberChat;
-        
+
+        // Handle image removal
+        if (req.body.removeImage) {
+            const publicId = extractCloudinaryPublicId(group.coverImage);
+            if (publicId) {
+                try {
+                    await cloudinary.uploader.destroy(publicId);
+                } catch (err) {
+                    console.error('Cloudinary delete error:', err.message);
+                }
+            }
+            group.coverImage = null;
+        }
+
         if (req.file) {
             group.coverImage = req.file.path;
         }

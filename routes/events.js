@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 // Use Cloudinary multer config for uploads
 const upload = require('../config/multer');
+const cloudinary = require('../config/cloudinary');
 
 // Get all events
 router.get('/', async (req, res) => {
@@ -127,6 +128,16 @@ router.post('/:id/react', auth, async (req, res) => {
   }
 });
 
+// Helper to extract Cloudinary public_id from URL
+function extractCloudinaryPublicId(url) {
+    if (!url) return null;
+    // Example: https://res.cloudinary.com/demo/image/upload/v1234567890/folder/filename.jpg
+    // public_id: folder/filename (without extension)
+    const parts = url.split('/');
+    const file = parts.slice(-2).join('/').split('.')[0];
+    return file;
+}
+
 // Update event (admin only)
 router.put('/:id', [auth, admin, upload.single('image')], async (req, res) => {
   try {
@@ -143,6 +154,20 @@ router.put('/:id', [auth, admin, upload.single('image')], async (req, res) => {
     event.time = time;
     event.location = location;
     event.type = type;
+
+    // Handle image removal
+    if (req.body.removeImage) {
+      const publicId = extractCloudinaryPublicId(event.image);
+      if (publicId) {
+        try {
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error('Cloudinary delete error:', err.message);
+        }
+      }
+      event.image = null;
+    }
+
     if (req.file) {
       event.image = req.file.path; // Cloudinary URL
     }

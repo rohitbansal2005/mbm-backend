@@ -9,6 +9,7 @@ const User = require('../models/User');
 const mongoose = require('mongoose');
 const Project = require('../models/Project');
 const cloudinaryUpload = require('../config/multer');
+const cloudinary = require('cloudinary').v2;
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -39,6 +40,15 @@ const upload = multer({
         cb(null, true);
     }
 });
+
+function extractCloudinaryPublicId(url) {
+    if (!url) return null;
+    // Example: https://res.cloudinary.com/demo/image/upload/v1234567890/folder/filename.jpg
+    // public_id: folder/filename (without extension)
+    const parts = url.split('/');
+    const file = parts.slice(-2).join('/').split('.')[0];
+    return file;
+}
 
 // Upload profile photo
 router.post('/:id/photo', auth, cloudinaryUpload.single('photo'), async (req, res) => {
@@ -327,6 +337,21 @@ router.put('/:id', auth, async (req, res) => {
             };
         }
 
+        // Handle image removal
+        if (req.body.removeImage) {
+            const publicId = extractCloudinaryPublicId(student.profilePicture);
+            if (publicId) {
+                try {
+                    await cloudinary.uploader.destroy(publicId);
+                } catch (err) {
+                    console.error('Cloudinary delete error:', err.message);
+                }
+            }
+            student.profilePicture = null;
+            student.avatar = null;
+            await User.findByIdAndUpdate(student.user, { profilePicture: null });
+        }
+
         // Update other profile fields
         const allowedUpdates = [
             'fullName', 'rollNumber', 'branch', 'session', 'semester',
@@ -344,7 +369,7 @@ router.put('/:id', auth, async (req, res) => {
                 student[field] = value;
                 // If updating profilePicture, also update User model
                 if (field === 'profilePicture' && value) {
-                  await User.findByIdAndUpdate(student.user, { profilePicture: value });
+                    await User.findByIdAndUpdate(student.user, { profilePicture: value });
                 }
             }
         }
