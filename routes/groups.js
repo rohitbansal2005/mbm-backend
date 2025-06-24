@@ -216,7 +216,9 @@ router.put('/:id', [auth, upload.single('coverImage')], async (req, res) => {
         }
 
         await group.save();
-        res.json(group);
+        // Re-fetch the updated group with all fields
+        const updatedGroup = await Group.findById(group._id);
+        res.json(updatedGroup);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
