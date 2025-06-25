@@ -163,6 +163,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['public', 'private', 'connections'],
         default: 'public'
+    },
+    isBanned: {
+        type: Boolean,
+        default: false
+    },
+    bannedEmail: {
+        type: String,
+        default: ''
     }
 });
 

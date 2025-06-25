@@ -43,7 +43,8 @@ const postSchema = new mongoose.Schema({
         default: Date.now
     },
     edited: { type: Boolean, default: false },
-    editedAt: { type: Date }
+    editedAt: { type: Date },
+    isActive: { type: Boolean, default: true }
 });
 
 module.exports = mongoose.model('Post', postSchema); 

@@ -108,6 +108,12 @@ router.post('/', auth, upload.single('media'), async (req, res) => {
       return res.status(400).json({ msg: 'Inappropriate language is not allowed in posts.' });
     }
 
+    // Prevent banned users from posting
+    const user = await User.findById(req.user._id);
+    if (user && user.isBanned) {
+      return res.status(403).json({ msg: 'You are banned from posting.' });
+    }
+
     let media = '';
     let mediaType = '';
 
