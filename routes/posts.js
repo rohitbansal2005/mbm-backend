@@ -175,7 +175,9 @@ router.put('/:id/like', auth, async (req, res) => {
             return res.status(403).json({ message: 'You cannot like this post.' });
         }
         
-        const likeIndex = post.likes.indexOf(req.user._id);
+        const likeIndex = post.likes.findIndex(
+            id => id.toString() === req.user._id.toString()
+        );
         const wasLiked = likeIndex !== -1;
         
         if (likeIndex === -1) {
