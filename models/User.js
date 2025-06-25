@@ -171,6 +171,13 @@ const userSchema = new mongoose.Schema({
     bannedEmail: {
         type: String,
         default: ''
+    },
+    usernameChangeHistory: [{
+        type: Date
+    }],
+    lastUsernameChange: {
+        type: Date,
+        default: null
     }
 });
 

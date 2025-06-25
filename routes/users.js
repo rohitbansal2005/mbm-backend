@@ -530,6 +530,19 @@ router.put('/:id', async (req, res) => {
             if (!isMatch) {
                 return res.status(401).json({ message: 'Incorrect password.' });
             }
+            // Username change limit logic
+            const now = new Date();
+            if (!user.usernameChangeHistory) user.usernameChangeHistory = [];
+            if (user.usernameChangeHistory.length >= 2) {
+                // Check if last change was more than 1 month ago
+                const lastChange = user.lastUsernameChange || user.usernameChangeHistory[user.usernameChangeHistory.length - 1];
+                if (lastChange && (now - new Date(lastChange)) < 30 * 24 * 60 * 60 * 1000) {
+                    return res.status(400).json({ message: 'You can only change your username 2 times. After that, you must wait 1 month between changes.' });
+                }
+            }
+            // Allow change, update history
+            user.usernameChangeHistory.push(now);
+            user.lastUsernameChange = now;
             user.username = req.body.username;
         }
         if (req.body.email) user.email = req.body.email;

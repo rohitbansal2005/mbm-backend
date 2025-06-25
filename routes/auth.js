@@ -496,6 +496,14 @@ router.post('/login', async (req, res) => {
             });
         }
 
+        // Block login for banned users or banned emails
+        if (user.isBanned || (user.bannedEmail && user.bannedEmail === email)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Your account is banned. Please contact support.'
+            });
+        }
+
         // Check password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
