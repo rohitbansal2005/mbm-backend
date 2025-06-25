@@ -41,8 +41,8 @@ router.get('/', async (req, res) => {
     try {
         console.log('Fetching all posts...');
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 10;
-        const skip = (page - 1) * limit;
+        const limit = req.query.limit ? parseInt(req.query.limit) : 0; // 0 means no limit in MongoDB
+        const skip = (page - 1) * (limit || 0);
 
         const posts = await Post.find({ author: { $exists: true, $ne: null } })
             .populate('author', 'username fullName profilePicture')
@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
             })
             .sort({ createdAt: -1 })
             .skip(skip)
-            .limit(limit)
+            .limit(limit) // if limit is 0, MongoDB returns all
             .lean();
         
         // Filter out posts where author population failed
