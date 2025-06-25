@@ -12,7 +12,7 @@ const isBlocked = require('../utils/isBlocked');
 const { getOnlineUserIds } = require('../socket');
 const Follow = require('../models/Follow');
 const nodemailer = require('nodemailer');
-const transporter = require('./auth').transporter;
+const { transporter } = require('./auth');
 
 // Get all users
 router.get('/', async (req, res) => {
