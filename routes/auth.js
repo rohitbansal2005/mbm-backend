@@ -612,5 +612,6 @@ router.get('/test-email', async (req, res) => {
     }
 });
 
-// At the end of the file, export transporter
-module.exports = { router, transporter }; 
+// At the end of the file, export router as default and transporter as named export
+module.exports = router;
+module.exports.transporter = transporter; 
