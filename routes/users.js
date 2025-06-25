@@ -11,6 +11,8 @@ const UserSettings = require('../models/UserSettings');
 const isBlocked = require('../utils/isBlocked');
 const { getOnlineUserIds } = require('../socket');
 const Follow = require('../models/Follow');
+const nodemailer = require('nodemailer');
+const transporter = require('./auth').transporter;
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -473,7 +475,7 @@ router.post('/', async (req, res) => {
         const student = new Student({
             user: user._id,
             fullName: username,
-            rollNumber: `MBM${Date.now()}`, // Temporary roll number
+            rollNumber: `MBM${Date.now()}`,
             branch: 'Not specified',
             session: 'Not specified',
             semester: 'Not specified',
@@ -481,6 +483,48 @@ router.post('/', async (req, res) => {
         });
 
         await student.save();
+
+        // Send welcome email
+        if (transporter) {
+            try {
+                await transporter.sendMail({
+                    from: process.env.EMAIL_USER,
+                    to: email,
+                    subject: 'Welcome to MBMConnect!',
+                    html: `
+                        <div style="background: #f5f7fa; padding: 32px 0; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif;">
+                          <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 32px 28px;">
+                            <div style="text-align: center;">
+                              <img src='https://mbmconnect.com/logo192.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
+                              <h1 style="color: #1976d2; margin-bottom: 8px; font-size: 2.2rem;">Welcome to <span style='color:#ff9800;'>MBMConnect</span>!</h1>
+                              <h2 style="color: #333; margin-bottom: 16px; font-size: 1.3rem; font-weight: 400;">Hi ${username},</h2>
+                            </div>
+                            <p style="color: #444; font-size: 1.05rem; line-height: 1.7; margin-bottom: 18px;">
+                              🎉 <b>Congratulations!</b> You are now a part of the <b>MBMConnect</b> family.<br>
+                              Connect, share, and grow with your college community.<br>
+                              <br>
+                              <span style="color: #1976d2; font-weight: 500;">What's next?</span><br>
+                              <ul style="margin: 10px 0 18px 20px; color: #555;">
+                                <li>👥 <b>Find and connect</b> with classmates and alumni</li>
+                                <li>📝 <b>Share posts, ideas, and achievements</b></li>
+                                <li>💬 <b>Join groups, discussions, and events</b></li>
+                                <li>🔔 <b>Stay updated</b> with campus news and notifications</li>
+                              </ul>
+                            </p>
+                            <div style="text-align: center; margin: 32px 0;">
+                              <a href="https://mbmconnect.com" style="background: #1976d2; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Explore MBMConnect</a>
+                            </div>
+                            <p style="color: #888; font-size: 0.98rem; text-align: center; margin-top: 24px;">If you have any questions, just reply to this email.<br>We're here to help you!</p>
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px 0;" />
+                            <p style="color: #bbb; font-size: 0.93rem; text-align: center;">With ❤️ from the MBMConnect Team</p>
+                          </div>
+                        </div>
+                    `
+                });
+            } catch (err) {
+                console.error('Failed to send welcome email:', err);
+            }
+        }
 
         // Create JWT token
         const token = jwt.sign(
