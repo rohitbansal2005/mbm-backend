@@ -231,14 +231,14 @@ router.post('/:id/comment', auth, async (req, res) => {
         const updatedPost = await post.save();
         // Get the new comment (last in array)
         const newComment = updatedPost.comments[updatedPost.comments.length - 1];
-        // Populate author for the new comment
-        await updatedPost.populate('comments.author', 'username profilePicture');
+        // Populate author for the post and comments
+        await updatedPost.populate('author', 'username fullName profilePicture avatar');
+        await updatedPost.populate('comments.author', 'username profilePicture avatar');
         // Emit socket event for new comment
         const io = req.app.get('io');
         if (io) {
             io.emit('commentAdded', { postId: req.params.id, comment: newComment });
         }
-        
         // Create notification for comment (only if not commenting on own post)
         if (post.author.toString() !== req.user._id.toString()) {
             try {
@@ -255,7 +255,6 @@ router.post('/:id/comment', auth, async (req, res) => {
                 // Don't fail the request if notification creation fails
             }
         }
-        
         res.json(updatedPost);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -431,7 +430,8 @@ router.delete('/:postId/comment/:commentId', auth, async (req, res) => {
       c => c._id.toString() !== req.params.commentId
     );
     await post.save();
-    await post.populate('comments.author', 'username profilePicture');
+    await post.populate('author', 'username fullName profilePicture avatar');
+    await post.populate('comments.author', 'username profilePicture avatar');
     // Emit socket event for comment deletion
     const io = req.app.get('io');
     if (io) {
