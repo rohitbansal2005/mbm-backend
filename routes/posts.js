@@ -233,7 +233,7 @@ router.post('/:id/comment', auth, async (req, res) => {
         const newComment = updatedPost.comments[updatedPost.comments.length - 1];
         // Populate author for the post and comments
         await updatedPost.populate('author', 'username fullName profilePicture avatar');
-        await updatedPost.populate('comments.author', 'username profilePicture avatar');
+        await updatedPost.populate('comments.author', 'username fullName profilePicture avatar');
         // Emit socket event for new comment
         const io = req.app.get('io');
         if (io) {
@@ -431,7 +431,7 @@ router.delete('/:postId/comment/:commentId', auth, async (req, res) => {
     );
     await post.save();
     await post.populate('author', 'username fullName profilePicture avatar');
-    await post.populate('comments.author', 'username profilePicture avatar');
+    await post.populate('comments.author', 'username fullName profilePicture avatar');
     // Emit socket event for comment deletion
     const io = req.app.get('io');
     if (io) {
@@ -462,7 +462,7 @@ router.put('/:postId/comment/:commentId', auth, async (req, res) => {
     comment.edited = true;
     comment.editedAt = new Date();
     await post.save();
-    await post.populate('comments.author', 'username profilePicture');
+    await post.populate('comments.author', 'username fullName profilePicture avatar');
     // Emit socket event for comment edit
     const io = req.app.get('io');
     if (io) {
@@ -705,7 +705,7 @@ router.get('/:id', async (req, res) => {
     const post = await Post.findById(req.params.id)
       .populate('author', 'username fullName profilePicture avatar')
       .populate('likes', 'username fullName profilePicture avatar')
-      .populate('comments.author', 'username profilePicture avatar');
+      .populate('comments.author', 'username fullName profilePicture avatar');
     if (!post) return res.status(404).json({ message: 'Post not found' });
     await deepPopulateComments(post);
     res.json(post);
@@ -789,7 +789,7 @@ router.post('/:postId/comment/:commentId/like', auth, async (req, res) => {
     }
     
     await post.save();
-    await post.populate('comments.author', 'username profilePicture');
+    await post.populate('comments.author', 'username fullName profilePicture avatar');
     res.json(post);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -809,7 +809,7 @@ router.post('/:postId/comment/:commentId/reply', auth, async (req, res) => {
       createdAt: new Date()
     });
     await post.save();
-    await post.populate('comments.author', 'username profilePicture');
+    await post.populate('comments.author', 'username fullName profilePicture avatar');
     res.json(post);
   } catch (error) {
     res.status(400).json({ message: error.message });
