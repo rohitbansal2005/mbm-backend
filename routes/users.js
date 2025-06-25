@@ -512,7 +512,7 @@ router.post('/', async (req, res) => {
                               </ul>
                             </p>
                             <div style="text-align: center; margin: 32px 0;">
-                              <a href="https://mbmconnect.com" style="background: #1976d2; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Explore MBMConnect</a>
+                              <a href="https://mbmconnect.vercel.app" style="background: #1976d2; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Explore MBMConnect</a>
                             </div>
                             <p style="color: #888; font-size: 0.98rem; text-align: center; margin-top: 24px;">If you have any questions, just reply to this email.<br>We're here to help you!</p>
                             <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px 0;" />
