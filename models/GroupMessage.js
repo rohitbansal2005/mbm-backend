@@ -14,7 +14,20 @@ const groupMessageSchema = new mongoose.Schema({
   text: {
     type: String,
     required: true
-  }
+  },
+  media: {
+    type: String,
+    default: ''
+  },
+  mediaType: {
+    type: String,
+    default: ''
+  },
+  seenBy: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: []
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('GroupMessage', groupMessageSchema); 

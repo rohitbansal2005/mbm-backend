@@ -694,4 +694,26 @@ router.get('/messages/user', auth, async (req, res) => {
     }
 });
 
+// @route   PUT api/groups/:groupId/messages/:messageId/seen
+// @desc    Mark a group message as seen by the current user
+// @access  Private
+router.put('/:groupId/messages/:messageId/seen', auth, async (req, res) => {
+    try {
+        const message = await GroupMessage.findById(req.params.messageId);
+        if (!message) {
+            return res.status(404).json({ msg: 'Message not found' });
+        }
+        // Add user to seenBy if not already present
+        if (!message.seenBy.some(id => id.toString() === req.user._id.toString())) {
+            message.seenBy.push(req.user._id);
+            await message.save();
+        }
+        await message.populate('sender', 'username profilePicture avatar');
+        res.json(message);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;
