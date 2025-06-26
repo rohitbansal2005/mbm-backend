@@ -262,4 +262,24 @@ router.post('/mark-read/:userId', auth, async (req, res) => {
     }
 });
 
+// Get unread one-to-one messages count for current user
+router.get('/unread-count', auth, async (req, res) => {
+  try {
+    const unreadCount = await Message.countDocuments({ recipient: req.user._id, read: false });
+    res.json({ unreadCount });
+  } catch (err) {
+    res.status(500).json({ unreadCount: 0, error: err.message });
+  }
+});
+
+// Mark all messages as read for current user
+router.post('/mark-all-read', auth, async (req, res) => {
+  try {
+    await Message.updateMany({ recipient: req.user._id, read: false }, { $set: { read: true } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

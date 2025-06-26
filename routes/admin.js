@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const User = require('../models/User');
 const Post = require('../models/Post');
+const Report = require('../models/Report');
 
 // Basic admin routes
 router.get('/test', [auth, admin], (req, res) => {
@@ -38,6 +39,26 @@ router.post('/unban-user/:userId', [auth, admin], async (req, res) => {
     } catch (error) {
         res.status(500).json({ message: 'Error unbanning user and enabling posts', error: error.message });
     }
+});
+
+// Get unread user reports count (admin only)
+router.get('/unread-count', [auth, admin], async (req, res) => {
+  try {
+    const unreadCount = await Report.countDocuments({ resolved: false });
+    res.json({ unreadCount });
+  } catch (err) {
+    res.status(500).json({ unreadCount: 0, error: err.message });
+  }
+});
+
+// Mark all user reports as read (admin only)
+router.post('/mark-all-read', [auth, admin], async (req, res) => {
+  try {
+    await Report.updateMany({ resolved: false }, { $set: { resolved: true } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 module.exports = router; 

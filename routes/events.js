@@ -6,6 +6,7 @@ const admin = require('../middleware/admin');
 // Use Cloudinary multer config for uploads
 const upload = require('../config/multer');
 const cloudinary = require('../config/cloudinary');
+const EventRead = require('../models/EventRead'); // You may need to create this model
 
 // Get all events
 router.get('/', async (req, res) => {
@@ -234,6 +235,31 @@ router.get('/:id', auth, async (req, res) => {
     res.json(event);
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// Get unread updates count for current user
+router.get('/unread-count', auth, async (req, res) => {
+  try {
+    const allEvents = await Event.find();
+    const readEvents = await EventRead.find({ user: req.user._id }).select('event');
+    const readEventIds = readEvents.map(er => er.event.toString());
+    const unreadCount = allEvents.filter(ev => !readEventIds.includes(ev._id.toString())).length;
+    res.json({ unreadCount });
+  } catch (err) {
+    res.status(500).json({ unreadCount: 0, error: err.message });
+  }
+});
+
+// Mark all updates as read for current user
+router.post('/mark-all-read', auth, async (req, res) => {
+  try {
+    const allEvents = await Event.find();
+    const bulk = allEvents.map(ev => ({ user: req.user._id, event: ev._id }));
+    await EventRead.insertMany(bulk, { ordered: false }).catch(() => {});
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

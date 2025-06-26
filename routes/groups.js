@@ -716,4 +716,41 @@ router.put('/:groupId/messages/:messageId/seen', auth, async (req, res) => {
     }
 });
 
+// Get unread group messages count for current user
+router.get('/unread-count', auth, async (req, res) => {
+  try {
+    const userGroups = await Group.find({ members: req.user._id }).select('_id');
+    if (!userGroups.length) return res.json({ unreadCount: 0 });
+    const groupIds = userGroups.map(g => g._id);
+    const unreadCount = await GroupMessage.countDocuments({
+      group: { $in: groupIds },
+      sender: { $ne: req.user._id },
+      seenBy: { $ne: req.user._id }
+    });
+    res.json({ unreadCount });
+  } catch (err) {
+    res.status(500).json({ unreadCount: 0, error: err.message });
+  }
+});
+
+// Mark all group messages as seen for current user
+router.post('/mark-all-seen', auth, async (req, res) => {
+  try {
+    const userGroups = await Group.find({ members: req.user._id }).select('_id');
+    if (!userGroups.length) return res.json({ success: true });
+    const groupIds = userGroups.map(g => g._id);
+    await GroupMessage.updateMany(
+      {
+        group: { $in: groupIds },
+        sender: { $ne: req.user._id },
+        seenBy: { $ne: req.user._id }
+      },
+      { $addToSet: { seenBy: req.user._id } }
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;
