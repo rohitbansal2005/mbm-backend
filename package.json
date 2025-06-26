@@ -41,6 +41,7 @@
     "sharp": "^0.34.1",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.1",
+    "web-push": "^3.6.7",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
