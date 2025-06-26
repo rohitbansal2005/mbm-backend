@@ -176,15 +176,13 @@ router.put('/:id/like', auth, async (req, res) => {
             return res.status(403).json({ message: 'You cannot like this post.' });
         }
         
-        const likeIndex = post.likes.findIndex(
-            id => id.toString() === req.user._id.toString()
-        );
-        const wasLiked = likeIndex !== -1;
+        // Remove all existing likes by this user (cleanup in case of duplicates)
+        post.likes = post.likes.filter(id => id.toString() !== req.user._id.toString());
         
-        if (likeIndex === -1) {
+        // Like or Unlike logic
+        if (req.body.like === true) {
             post.likes.push(req.user._id);
-            
-            // Create notification for like (only if not already liked)
+            // Create notification for like (only if not liking own post)
             if (post.author.toString() !== req.user._id.toString()) {
                 try {
                     await createNotification(
@@ -209,9 +207,8 @@ router.put('/:id/like', auth, async (req, res) => {
                     // Don't fail the request if notification creation fails
                 }
             }
-        } else {
-            post.likes.splice(likeIndex, 1);
         }
+        // else: user is unliking, so don't add back
 
         const updatedPost = await post.save();
         await updatedPost.populate('author', 'username fullName profilePicture');
