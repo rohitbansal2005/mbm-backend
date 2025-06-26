@@ -3,6 +3,7 @@ const router = express.Router();
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const isBlocked = require('../utils/isBlocked');
+const { sendPushNotification } = require('../utils/webPush');
 
 // Get all notifications for the current user
 router.get('/', auth, async (req, res) => {
@@ -99,6 +100,40 @@ router.get('/unread/count', auth, async (req, res) => {
     } catch (error) {
         console.error('Error getting unread notification count:', error);
         res.status(500).json({ message: 'Error getting unread notification count', error: error.message });
+    }
+});
+
+// Add a POST / route to create a notification and send a push notification
+router.post('/', auth, async (req, res) => {
+    try {
+        const { recipient, type, content, relatedId, onModel } = req.body;
+        if (!recipient || !type || !content) {
+            return res.status(400).json({ message: 'Missing required fields' });
+        }
+        const notification = new Notification({
+            recipient,
+            sender: req.user._id,
+            type,
+            content,
+            relatedId,
+            onModel
+        });
+        await notification.save();
+        // Send push notification to recipient
+        try {
+            await sendPushNotification(recipient, {
+                title: 'Notification',
+                body: content,
+                icon: '/mbmlogo.png',
+                data: { url: '/' }
+            });
+        } catch (err) {
+            console.error('Push notification error (notification):', err);
+        }
+        res.json(notification);
+    } catch (error) {
+        console.error('Error creating notification:', error);
+        res.status(500).json({ message: 'Error creating notification', error: error.message });
     }
 });
 

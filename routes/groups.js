@@ -14,6 +14,7 @@ const Filter = require('bad-words');
 const filter = new Filter();
 const createNotification = require('../utils/createNotification');
 const cloudinary = require('../config/cloudinary');
+const { sendPushNotification } = require('../utils/webPush');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -510,6 +511,20 @@ router.post('/:groupId/messages', auth, async (req, res) => {
             };
             io.to(req.params.groupId).emit('receiveGroupMessage', messageWithGroup);
         }
+        // Send push notification to all group members except sender
+        try {
+            const memberIds = group.members.map(m => m.toString()).filter(id => id !== req.user._id.toString());
+            for (const memberId of memberIds) {
+                await sendPushNotification(memberId, {
+                    title: `New message in ${group.name}`,
+                    body: `${req.user.username} sent a message in group ${group.name}`,
+                    icon: '/mbmlogo.png',
+                    data: { url: '/groups/' + group._id }
+                });
+            }
+        } catch (err) {
+            console.error('Push notification error (group):', err);
+        }
         res.json(newMessage);
     } catch (err) {
         console.error(err.message);
@@ -589,6 +604,17 @@ router.put('/:id/add-member', auth, async (req, res) => {
 
         group.members.push(userId);
         await group.save();
+        // Send push notification to the invited user
+        try {
+            await sendPushNotification(userId, {
+                title: 'Group Invite',
+                body: `You have been added to the group ${group.name}`,
+                icon: '/mbmlogo.png',
+                data: { url: '/groups/' + group._id }
+            });
+        } catch (err) {
+            console.error('Push notification error (group invite):', err);
+        }
         res.json(group);
     } catch (err) {
         console.error(err.message);

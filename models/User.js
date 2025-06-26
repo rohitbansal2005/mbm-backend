@@ -178,7 +178,17 @@ const userSchema = new mongoose.Schema({
     lastUsernameChange: {
         type: Date,
         default: null
-    }
+    },
+    // Push subscriptions for web push notifications
+    pushSubscriptions: [
+        {
+            endpoint: String,
+            keys: {
+                p256dh: String,
+                auth: String
+            }
+        }
+    ]
 });
 
 // Hash password before saving

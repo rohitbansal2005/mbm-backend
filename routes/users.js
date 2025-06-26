@@ -13,6 +13,7 @@ const { getOnlineUserIds } = require('../socket');
 const Follow = require('../models/Follow');
 const nodemailer = require('nodemailer');
 const { transporter } = require('./auth');
+const { savePushSubscription } = require('../controllers/userController');
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -777,6 +778,9 @@ router.post('/unblock/:userId', auth, async (req, res) => {
         res.status(500).json({ error: 'Failed to unblock user' });
     }
 });
+
+// Save push subscription for web push notifications
+router.post('/save-subscription', auth, savePushSubscription);
 
 // Add a catch-all for unmatched routes at the end for debugging
 router.use((req, res) => {

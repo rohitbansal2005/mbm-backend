@@ -10,6 +10,7 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const webpush = require('web-push');
+const usersRouter = require('./routes/users');
 
 dotenv.config();
 
@@ -37,6 +38,9 @@ app.use('/api/reports', reportRoutes);
 
 // Register the posts route
 app.use('/api/posts', postRoutes);
+
+// Register the users route
+app.use('/api', usersRouter);
 
 // --- Web Push Notification Setup ---
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '<YOUR_VAPID_PUBLIC_KEY_HERE>';

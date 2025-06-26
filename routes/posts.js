@@ -11,6 +11,7 @@ const upload = require('../config/multer');
 const Filter = require('bad-words');
 const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
+const { sendPushNotification } = require('../utils/webPush');
 
 // In-memory array for demo (use DB in production)
 const postReports = [];
@@ -194,6 +195,15 @@ router.put('/:id/like', auth, async (req, res) => {
                         post._id,
                         'Post'
                     );
+                    await sendPushNotification(
+                        post.author,
+                        {
+                            title: 'New Like',
+                            body: `${req.user.username} liked your post`,
+                            icon: '/mbmlogo.png',
+                            data: { url: '/post/' + post._id }
+                        }
+                    );
                 } catch (notificationError) {
                     console.error('Failed to create like notification:', notificationError);
                     // Don't fail the request if notification creation fails
@@ -257,6 +267,15 @@ router.post('/:id/comment', auth, async (req, res) => {
                     `${req.user.username} commented on your post`,
                     post._id,
                     'Post'
+                );
+                await sendPushNotification(
+                    post.author,
+                    {
+                        title: 'New Comment',
+                        body: `${req.user.username} commented on your post`,
+                        icon: '/mbmlogo.png',
+                        data: { url: '/post/' + post._id }
+                    }
                 );
             } catch (notificationError) {
                 console.error('Failed to create comment notification:', notificationError);

@@ -7,6 +7,7 @@ const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const mongoose = require('mongoose');
 const isBlocked = require('../utils/isBlocked');
+const { sendPushNotification } = require('../utils/webPush');
 
 console.log('Follows routes loaded');
 
@@ -96,6 +97,20 @@ router.post('/:userId', auth, async (req, res) => {
                 await notification.save();
                 console.log('New notification created for updated follow request:', notification);
 
+                try {
+                    await sendPushNotification(
+                        userId,
+                        {
+                            title: 'New Follow Request',
+                            body: `${followerUsername} wants to follow you`,
+                            icon: '/mbmlogo.png',
+                            data: { url: '/profile/' + followerId }
+                        }
+                    );
+                } catch (err) {
+                    console.error('Push notification error (follow request):', err);
+                }
+
                 res.status(200).json({
                     message: 'Follow request sent successfully',
                     follow: existingFollow
@@ -133,6 +148,20 @@ router.post('/:userId', auth, async (req, res) => {
 
         await notification.save();
         console.log('Notification created:', notification);
+
+        try {
+            await sendPushNotification(
+                userId,
+                {
+                    title: 'New Follow Request',
+                    body: `${followerUsername} wants to follow you`,
+                    icon: '/mbmlogo.png',
+                    data: { url: '/profile/' + followerId }
+                }
+            );
+        } catch (err) {
+            console.error('Push notification error (follow request):', err);
+        }
 
         res.status(201).json({
             message: 'Follow request sent successfully',
@@ -423,6 +452,20 @@ router.put('/accept/:followId', auth, async (req, res) => {
                 followingId: follow.following.toString(),
                 status: 'accepted'
             });
+        }
+
+        try {
+            await sendPushNotification(
+                follow.follower,
+                {
+                    title: 'Follow Request Accepted',
+                    body: `${req.user.username} accepted your follow request`,
+                    icon: '/mbmlogo.png',
+                    data: { url: '/profile/' + userId }
+                }
+            );
+        } catch (err) {
+            console.error('Push notification error (follow accepted):', err);
         }
 
         res.json({ message: 'Follow request accepted', follow });

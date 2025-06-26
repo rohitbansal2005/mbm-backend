@@ -7,6 +7,7 @@ const { check, validationResult } = require('express-validator');
 const Filter = require('bad-words');
 const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
+const { sendPushNotification } = require('../utils/webPush');
 
 // Helper function to format message with proper image URLs
 const formatMessage = (message) => {
@@ -142,6 +143,18 @@ router.post(
                 io.to(req.params.userId).emit('newMessage', formattedMessage);
                 // Emit to sender's room for confirmation
                 io.to(req.user._id).emit('messageSent', formattedMessage);
+            }
+
+            // Send push notification to recipient
+            try {
+                await sendPushNotification(req.params.userId, {
+                    title: 'New Message',
+                    body: `${req.user.username} sent you a message`,
+                    icon: '/mbmlogo.png',
+                    data: { url: '/messages/' + req.user._id }
+                });
+            } catch (err) {
+                console.error('Push notification error:', err);
             }
 
             res.json(formattedMessage);
