@@ -832,7 +832,7 @@ router.post('/unblock/:userId', auth, async (req, res) => {
 router.post('/save-subscription', auth, savePushSubscription);
 
 // Referral Leaderboard
-router.get('/leaderboard', async (req, res) => {
+router.get('/leaderboard', auth, async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 20;
         const skip = parseInt(req.query.skip) || 0;
