@@ -276,7 +276,7 @@ router.get('/followers/:userId', auth, async (req, res) => {
         })
         .populate({
             path: 'follower',
-            select: 'username fullName profilePicture avatar _id'
+            select: 'username fullName profilePicture avatar _id role'
         })
         .sort({ createdAt: -1 });
 
@@ -349,7 +349,7 @@ router.get('/following/:userId', auth, async (req, res) => {
         })
         .populate({
             path: 'following',
-            select: 'username fullName profilePicture avatar _id'
+            select: 'username fullName profilePicture avatar _id role'
         })
         .sort({ createdAt: -1 });
 
@@ -369,7 +369,7 @@ router.get('/pending', auth, async (req, res) => {
             following: req.user._id,
             status: 'pending'
         })
-        .populate('follower', 'username profilePicture')
+        .populate('follower', 'username profilePicture role')
         .sort({ createdAt: -1 });
 
         res.json(pendingRequests);

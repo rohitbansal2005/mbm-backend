@@ -56,8 +56,8 @@ router.get('/', auth, async (req, res) => {
             ]
         })
         .sort({ createdAt: -1 })
-        .populate('sender', 'username profilePicture avatar')
-        .populate('recipient', 'username profilePicture avatar');
+        .populate('sender', 'username profilePicture avatar role')
+        .populate('recipient', 'username profilePicture avatar role');
 
         const formattedMessages = messages.map(formatMessage);
         res.json(formattedMessages);
@@ -79,8 +79,8 @@ router.get('/:userId', auth, async (req, res) => {
             ]
         })
         .sort({ createdAt: 1 })
-        .populate('sender', 'username profilePicture avatar')
-        .populate('recipient', 'username profilePicture avatar');
+        .populate('sender', 'username profilePicture avatar role')
+        .populate('recipient', 'username profilePicture avatar role');
 
         const formattedMessages = messages.map(formatMessage);
         res.json(formattedMessages);
@@ -131,8 +131,8 @@ router.post(
             await newMessage.save();
 
             // Populate sender and recipient details
-            await newMessage.populate('sender', 'username profilePicture avatar');
-            await newMessage.populate('recipient', 'username profilePicture avatar');
+            await newMessage.populate('sender', 'username profilePicture avatar role');
+            await newMessage.populate('recipient', 'username profilePicture avatar role');
 
             const formattedMessage = formatMessage(newMessage);
 
@@ -200,8 +200,8 @@ router.put(
             await message.save();
 
             // Populate sender and recipient details
-            await message.populate('sender', 'username profilePicture avatar');
-            await message.populate('recipient', 'username profilePicture avatar');
+            await message.populate('sender', 'username profilePicture avatar role');
+            await message.populate('recipient', 'username profilePicture avatar role');
 
             const formattedMessage = formatMessage(message);
 
