@@ -126,7 +126,7 @@ router.post('/', [auth, upload.single('coverImage'), [
 router.get('/', auth, async (req, res) => {
     try {
         const groups = await Group.find()
-            .populate('creator', 'username profilePicture isPremium')
+            .populate('creator', 'username fullName profilePicture isPremium')
             .populate('members', 'username fullName profilePicture role isPremium')
             .populate('admins', 'username fullName profilePicture role isPremium')
             .sort({ createdAt: -1 });
@@ -154,7 +154,7 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
     try {
         const group = await Group.findById(req.params.id)
-            .populate('creator', 'username profilePicture isPremium')
+            .populate('creator', 'username fullName profilePicture isPremium')
             .populate('members', 'username fullName profilePicture role isPremium')
             .populate('admins', 'username fullName profilePicture role isPremium')
             .populate('pendingMembers', 'username fullName profilePicture isPremium');
