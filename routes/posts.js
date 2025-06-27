@@ -11,7 +11,7 @@ const upload = require('../config/multer');
 const Filter = require('bad-words');
 const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
-const { sendPushNotification } = require('../utils/webPush');
+const { sendPushNotification, sendPushNotificationToUser } = require('../utils/webPush');
 
 // In-memory array for demo (use DB in production)
 const postReports = [];
@@ -197,7 +197,7 @@ router.put('/:id/like', auth, async (req, res) => {
                         post._id,
                         'Post'
                     );
-                    await sendPushNotification(
+                    await sendPushNotificationToUser(
                         post.author,
                         {
                             title: 'New Like',
@@ -269,7 +269,7 @@ router.post('/:id/comment', auth, async (req, res) => {
                     post._id,
                     'Post'
                 );
-                await sendPushNotification(
+                await sendPushNotificationToUser(
                     post.author,
                     {
                         title: 'New Comment',

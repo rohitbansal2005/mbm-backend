@@ -7,7 +7,7 @@ const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const mongoose = require('mongoose');
 const isBlocked = require('../utils/isBlocked');
-const { sendPushNotification } = require('../utils/webPush');
+const { sendPushNotificationToUser } = require('../utils/webPush');
 
 console.log('Follows routes loaded');
 
@@ -98,7 +98,7 @@ router.post('/:userId', auth, async (req, res) => {
                 console.log('New notification created for updated follow request:', notification);
 
                 try {
-                    await sendPushNotification(
+                    await sendPushNotificationToUser(
                         userId,
                         {
                             title: 'New Follow Request',
@@ -150,7 +150,7 @@ router.post('/:userId', auth, async (req, res) => {
         console.log('Notification created:', notification);
 
         try {
-            await sendPushNotification(
+            await sendPushNotificationToUser(
                 userId,
                 {
                     title: 'New Follow Request',
@@ -449,7 +449,7 @@ router.put('/accept/:followId', auth, async (req, res) => {
         }
 
         try {
-            await sendPushNotification(
+            await sendPushNotificationToUser(
                 follow.follower,
                 {
                     title: 'Follow Request Accepted',

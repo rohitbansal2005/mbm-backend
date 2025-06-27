@@ -11,6 +11,7 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const webpush = require('web-push');
 const usersRouter = require('./routes/users');
+const PushSubscription = require('./models/PushSubscription');
 
 dotenv.config();
 
@@ -52,18 +53,27 @@ webpush.setVapidDetails(
   VAPID_PRIVATE_KEY
 );
 
-// In-memory store for push subscriptions (replace with DB in production)
-const pushSubscriptions = [];
-
 // Route to save push subscription from frontend
-app.use(bodyParser.json());
-app.post('/api/save-subscription', (req, res) => {
-  const subscription = req.body;
-  // Avoid duplicates
-  if (!pushSubscriptions.find(sub => JSON.stringify(sub) === JSON.stringify(subscription))) {
-    pushSubscriptions.push(subscription);
+app.post('/api/save-subscription', async (req, res) => {
+  try {
+    const token = req.headers.authorization && req.headers.authorization.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+    const decoded = require('jsonwebtoken').decode(token);
+    if (!decoded || !decoded.id) return res.status(401).json({ message: 'Invalid token' });
+    const userId = decoded.id;
+    const subscription = req.body;
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+      return res.status(400).json({ message: 'Invalid subscription' });
+    }
+    await PushSubscription.findOneAndUpdate(
+      { user: userId, endpoint: subscription.endpoint },
+      { $set: { keys: subscription.keys } },
+      { upsert: true, new: true }
+    );
+    res.status(201).json({ message: 'Subscription saved' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to save subscription', error: err.message });
   }
-  res.status(201).json({ message: 'Subscription saved' });
 });
 
 // Route to send a test notification to all subscribers

@@ -3,7 +3,7 @@ const router = express.Router();
 const Notification = require('../models/Notification');
 const auth = require('../middleware/auth');
 const isBlocked = require('../utils/isBlocked');
-const { sendPushNotification } = require('../utils/webPush');
+const { sendPushNotificationToUser } = require('../utils/webPush');
 
 // Get all notifications for the current user
 router.get('/', auth, async (req, res) => {
@@ -121,7 +121,7 @@ router.post('/', auth, async (req, res) => {
         await notification.save();
         // Send push notification to recipient
         try {
-            await sendPushNotification(recipient, {
+            await sendPushNotificationToUser(recipient, {
                 title: 'Notification',
                 body: content,
                 icon: '/mbmlogo.png',

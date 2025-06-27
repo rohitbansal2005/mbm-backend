@@ -1,5 +1,5 @@
 const webpush = require('web-push');
-const User = require('../models/User');
+const PushSubscription = require('../models/PushSubscription');
 
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BAo3Qf5fNiL46ibvZLzgik6t0byN02E8VjfxWN7XT3OJ3L98APkMJCBfFpe1dKwnSfG-695d45cfOFqVqo6SB_o';
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'YOUR_PRIVATE_KEY_HERE';
@@ -11,21 +11,21 @@ webpush.setVapidDetails(
 );
 
 // Send a push notification to all of a user's subscriptions
-async function sendPushNotification(userId, payload) {
-  const user = await User.findById(userId);
-  if (!user || !user.pushSubscriptions) return;
-  const notificationPayload = JSON.stringify(payload);
-  for (const sub of user.pushSubscriptions) {
+async function sendPushNotificationToUser(userId, payload) {
+  const subscriptions = await PushSubscription.find({ user: userId });
+  let success = 0;
+  for (const sub of subscriptions) {
     try {
-      await webpush.sendNotification(sub, notificationPayload);
+      await webpush.sendNotification({
+        endpoint: sub.endpoint,
+        keys: sub.keys
+      }, JSON.stringify(payload));
+      success++;
     } catch (err) {
-      // Remove invalid subscriptions
-      if (err.statusCode === 410 || err.statusCode === 404) {
-        user.pushSubscriptions = user.pushSubscriptions.filter(s => s.endpoint !== sub.endpoint);
-        await user.save();
-      }
+      // Optionally: remove invalid subscriptions
     }
   }
+  return success;
 }
 
-module.exports = { sendPushNotification }; 
+module.exports = { sendPushNotificationToUser }; 
