@@ -217,6 +217,10 @@ const userSchema = new mongoose.Schema({
         enum: ['none', 'gold', 'blue'],
         default: 'none'
     },
+    fullName: {
+        type: String,
+        default: ''
+    },
 });
 
 // Hash password before saving
