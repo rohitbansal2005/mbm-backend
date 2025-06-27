@@ -19,7 +19,7 @@ const { savePushSubscription } = require('../controllers/userController');
 router.get('/', async (req, res) => {
     try {
         // Only select public fields
-        const users = await User.find().select('username profilePicture avatar _id role');
+        const users = await User.find().select('username fullName profilePicture avatar _id role');
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -70,7 +70,7 @@ router.get('/search', auth, async (req, res) => {
                 { email: { $regex: query, $options: 'i' } },
                 { fullName: { $regex: query, $options: 'i' } }
             ]
-        }).select('_id username profilePicture avatar role');
+        }).select('_id username fullName profilePicture avatar role');
 
         // For each user, get their Student profile and filter out blocked users
         const results = await Promise.all(users.map(async user => {
@@ -86,12 +86,12 @@ router.get('/search', auth, async (req, res) => {
             return {
                 _id: user._id,
                 username: user.username,
+                fullName: user.fullName,
                 profilePicture: user.profilePicture,
                 avatar: user.avatar,
                 branch: student?.branch || '',
                 session: student?.session || '',
                 semester: student?.semester || '',
-                fullName: student?.fullName || '',
                 bio: student?.bio || '',
             };
         }));
@@ -121,7 +121,7 @@ router.get('/blocked', auth, async (req, res) => {
         const populatedUser = await User.findById(userId)
             .populate({
                 path: 'blockedUsers.user',
-                select: 'username profilePicture avatar role',
+                select: 'username fullName profilePicture avatar role',
                 model: 'User'
             });
             
@@ -134,6 +134,7 @@ router.get('/blocked', auth, async (req, res) => {
         const blocked = (populatedUser.blockedUsers || []).map(b => ({
             _id: b.user._id,
             username: b.user.username,
+            fullName: b.user.fullName,
             profilePicture: b.user.profilePicture,
             avatar: b.user.avatar,
             blockedAt: b.blockedAt
@@ -215,7 +216,7 @@ router.get('/online', auth, async (req, res) => {
 // Get user by username
 router.get('/findByUsername/:username', async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username }).select('_id username profilePicture role'); // Select only necessary fields
+    const user = await User.findOne({ username: req.params.username }).select('_id username fullName profilePicture role'); // Select only necessary fields
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -237,7 +238,7 @@ router.get('/friends', auth, async (req, res) => {
         // Get all users that are friends with the current user
         const friends = await User.find({
             _id: { $in: user.friends }
-        }).select('username profilePicture avatar role');
+        }).select('username fullName profilePicture avatar role');
 
         res.json(friends);
     } catch (err) {
@@ -319,6 +320,7 @@ router.get('/:id', auth, async (req, res) => {
             return res.json({
                 _id: user._id,
                 username: user.username,
+                fullName: user.fullName,
                 profilePicture: user.profilePicture,
                 bio: user.bio,
                 student: publicStudent,
@@ -700,7 +702,7 @@ router.get('/suggested', auth, async (req, res) => {
         ]
       }
     })
-    .select('username profilePicture avatar role')
+    .select('username fullName profilePicture avatar role')
     .limit(5);
 
     // Calculate mutual friends for each suggested user

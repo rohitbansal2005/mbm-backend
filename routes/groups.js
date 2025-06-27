@@ -110,8 +110,8 @@ router.post('/', [auth, upload.single('coverImage'), [
         const group = await newGroup.save();
         
         // Populate the group with member details before sending response
-        await group.populate('members', 'username profilePicture role');
-        await group.populate('admins', 'username profilePicture role');
+        await group.populate('members', 'username fullName profilePicture role');
+        await group.populate('admins', 'username fullName profilePicture role');
         
         res.json(group);
     } catch (err) {
@@ -127,8 +127,8 @@ router.get('/', auth, async (req, res) => {
     try {
         const groups = await Group.find()
             .populate('creator', 'username profilePicture')
-            .populate('members', 'username profilePicture role')
-            .populate('admins', 'username profilePicture role')
+            .populate('members', 'username fullName profilePicture role')
+            .populate('admins', 'username fullName profilePicture role')
             .sort({ createdAt: -1 });
 
         // Filter groups: show only if user is member, admin, or creator, or if group.type === 'admin'
@@ -155,8 +155,8 @@ router.get('/:id', auth, async (req, res) => {
     try {
         const group = await Group.findById(req.params.id)
             .populate('creator', 'username profilePicture')
-            .populate('members', 'username profilePicture role')
-            .populate('admins', 'username profilePicture role')
+            .populate('members', 'username fullName profilePicture role')
+            .populate('admins', 'username fullName profilePicture role')
             .populate('pendingMembers', 'username profilePicture');
 
         if (!group) {

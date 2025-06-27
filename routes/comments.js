@@ -17,7 +17,7 @@ const Comment = mongoose.models.Comment || mongoose.model('Comment', commentSche
 // GET /api/comments - Fetch all comments
 router.get('/', async (req, res) => {
   try {
-    const comments = await Comment.find().sort({ createdAt: -1 }).populate('author', 'username profilePicture role');
+    const comments = await Comment.find().sort({ createdAt: -1 }).populate('author', 'username fullName profilePicture role');
     res.json(comments);
   } catch (error) {
     console.error('Error fetching comments:', error);
