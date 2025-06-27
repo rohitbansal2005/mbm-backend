@@ -208,6 +208,15 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    premiumEmailSent: {
+        type: Boolean,
+        default: false
+    },
+    badgeType: {
+        type: String,
+        enum: ['none', 'gold', 'blue'],
+        default: 'none'
+    },
 });
 
 // Hash password before saving

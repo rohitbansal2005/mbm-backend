@@ -19,7 +19,7 @@ const { savePushSubscription } = require('../controllers/userController');
 router.get('/', async (req, res) => {
     try {
         // Only select public fields
-        const users = await User.find().select('username fullName profilePicture avatar _id role isPremium');
+        const users = await User.find().select('username fullName profilePicture avatar _id role isPremium badgeType');
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -70,7 +70,7 @@ router.get('/search', auth, async (req, res) => {
                 { email: { $regex: query, $options: 'i' } },
                 { fullName: { $regex: query, $options: 'i' } }
             ]
-        }).select('_id username fullName profilePicture avatar role isPremium');
+        }).select('_id username fullName profilePicture avatar role isPremium badgeType');
 
         // For each user, get their Student profile and filter out blocked users
         const results = await Promise.all(users.map(async user => {
@@ -121,7 +121,7 @@ router.get('/blocked', auth, async (req, res) => {
         const populatedUser = await User.findById(userId)
             .populate({
                 path: 'blockedUsers.user',
-                select: 'username fullName profilePicture avatar role isPremium',
+                select: 'username fullName profilePicture avatar role isPremium badgeType',
                 model: 'User'
             });
             
@@ -158,7 +158,7 @@ router.get('/online', auth, async (req, res) => {
     const onlineUsers = await User.find({
       lastSeen: { $gte: new Date(Date.now() - 5 * 60 * 1000) }
     })
-    .select('_id fullName avatar username profilePicture lastSeen role isPremium')
+    .select('_id fullName avatar username profilePicture lastSeen role isPremium badgeType')
     .lean();
 
     console.log('Fetched onlineUsers:', onlineUsers);
@@ -216,7 +216,7 @@ router.get('/online', auth, async (req, res) => {
 // Get user by username
 router.get('/findByUsername/:username', async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.params.username }).select('_id username fullName profilePicture role isPremium'); // Select only necessary fields
+    const user = await User.findOne({ username: req.params.username }).select('_id username fullName profilePicture role isPremium badgeType'); // Select only necessary fields
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -238,7 +238,7 @@ router.get('/friends', auth, async (req, res) => {
         // Get all users that are friends with the current user
         const friends = await User.find({
             _id: { $in: user.friends }
-        }).select('username fullName profilePicture avatar role isPremium');
+        }).select('username fullName profilePicture avatar role isPremium badgeType');
 
         res.json(friends);
     } catch (err) {
@@ -702,7 +702,7 @@ router.get('/suggested', auth, async (req, res) => {
         ]
       }
     })
-    .select('username fullName profilePicture avatar role isPremium')
+    .select('username fullName profilePicture avatar role isPremium badgeType')
     .limit(5);
 
     // Calculate mutual friends for each suggested user
@@ -844,7 +844,7 @@ router.get('/leaderboard', auth, async (req, res) => {
         const limit = parseInt(req.query.limit) || 20;
         const skip = parseInt(req.query.skip) || 0;
         const users = await User.find()
-            .select('username referralCount studentCornerUnlocked profilePicture role isPremium')
+            .select('username referralCount studentCornerUnlocked profilePicture role isPremium badgeType')
             .sort({ referralCount: -1, username: 1 })
             .skip(skip)
             .limit(limit);

@@ -24,11 +24,11 @@ const deepPopulateComments = async (postOrPosts) => {
     try {
       await post.populate({
         path: 'comments.author',
-        select: 'username fullName profilePicture avatar role isPremium'
+        select: 'username fullName profilePicture avatar role isPremium badgeType'
       });
       await post.populate({
         path: 'comments.replies.author',
-        select: 'username fullName profilePicture avatar role isPremium'
+        select: 'username fullName profilePicture avatar role isPremium badgeType'
       });
     } catch (err) {
       console.error('Error populating comments or replies:', err);
@@ -50,11 +50,11 @@ router.get('/', async (req, res) => {
             .populate('likes', 'username fullName profilePicture avatar isPremium')
             .populate({
                 path: 'comments.author',
-                select: 'username fullName profilePicture avatar role isPremium'
+                select: 'username fullName profilePicture avatar role isPremium badgeType'
             })
             .populate({
                 path: 'comments.replies.author',
-                select: 'username fullName profilePicture avatar role isPremium'
+                select: 'username fullName profilePicture avatar role isPremium badgeType'
             })
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -614,11 +614,11 @@ router.get('/user/:userId', auth, async (req, res) => {
       .populate('likes', 'username fullName profilePicture avatar isPremium')
       .populate({
         path: 'comments.author',
-        select: 'username fullName profilePicture avatar role isPremium'
+        select: 'username fullName profilePicture avatar role isPremium badgeType'
       })
       .populate({
         path: 'comments.replies.author',
-        select: 'username fullName profilePicture avatar role isPremium'
+        select: 'username fullName profilePicture avatar role isPremium badgeType'
       })
       .sort({ createdAt: -1 });
     console.log('[DEBUG] Returning', posts.length, 'posts');
@@ -687,11 +687,11 @@ router.get('/saved', auth, async (req, res) => {
         .populate('likes', 'username fullName profilePicture avatar isPremium')
         .populate({
             path: 'comments.author',
-            select: 'username fullName profilePicture avatar role isPremium'
+            select: 'username fullName profilePicture avatar role isPremium badgeType'
         })
         .populate({
             path: 'comments.replies.author',
-            select: 'username fullName profilePicture avatar role isPremium'
+            select: 'username fullName profilePicture avatar role isPremium badgeType'
         })
         .sort({ createdAt: -1 });
 
@@ -741,8 +741,8 @@ router.get('/:id', async (req, res) => {
     const post = await Post.findById(req.params.id)
       .populate('author', 'username fullName profilePicture avatar role isPremium')
       .populate('likes', 'username fullName profilePicture avatar isPremium')
-      .populate('comments.author', 'username fullName profilePicture avatar role isPremium')
-      .populate('comments.replies.author', 'username fullName profilePicture avatar role isPremium');
+      .populate('comments.author', 'username fullName profilePicture avatar role isPremium badgeType')
+      .populate('comments.replies.author', 'username fullName profilePicture avatar role isPremium badgeType');
     if (!post) return res.status(404).json({ message: 'Post not found' });
     await deepPopulateComments(post);
     res.json(post);
