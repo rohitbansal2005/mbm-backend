@@ -451,7 +451,7 @@ router.post('/login', async (req, res) => {
 // Create a new user
 router.post('/', async (req, res) => {
     try {
-        const { username, email, password, inviteCode } = req.body;
+        const { username, email, password, inviteCode, referralCode } = req.body;
 
         if (inviteCode !== 'MBM2005') {
             return res.status(400).json({ message: 'Invalid invite code. Only college students can register.' });
@@ -463,11 +463,60 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ message: 'User already exists' });
         }
 
-        // Create new user
+        // Referral logic
+        let referredBy = null;
+        if (referralCode) {
+            const referrer = await User.findOne({ referralCode });
+            if (referrer) {
+                referredBy = referrer._id;
+                referrer.referralCount = (referrer.referralCount || 0) + 1;
+                // Unlock Student Corner if 10 or more referrals
+                if (referrer.referralCount === 10) {
+                    referrer.studentCornerUnlocked = true;
+                    // Send congratulation email
+                    if (transporter) {
+                        try {
+                            await transporter.sendMail({
+                                from: process.env.EMAIL_USER,
+                                to: referrer.email,
+                                subject: 'Congratulations! Student Corner Unlocked 🎓',
+                                html: `
+                                    <div style="background: #f5f7fa; padding: 32px 0; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif;">
+                                      <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 32px 28px;">
+                                        <div style="text-align: center;">
+                                          <img src='https://mbmconnect.com/mbmlogo.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
+                                          <h1 style="color: #1976d2; margin-bottom: 8px; font-size: 2.2rem;">Congratulations, <span style='color:#ff9800;'>${referrer.username}</span>!</h1>
+                                        </div>
+                                        <p style="color: #444; font-size: 1.05rem; line-height: 1.7; margin-bottom: 18px;">
+                                          🎉 <b>You have successfully referred 10 friends!</b><br>
+                                          <b>Student Corner</b> is now <span style='color:green;'>unlocked</span> for your account.<br>
+                                          <br>
+                                          Explore exclusive resources, mentorship, and more.<br>
+                                          <br>
+                                          <a href="https://mbmconnect.com/student-corner" style="background: #1976d2; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Go to Student Corner</a>
+                                        </p>
+                                        <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px 0;" />
+                                        <p style="color: #bbb; font-size: 0.93rem; text-align: center;">With ❤️ from the MBMConnect Team</p>
+                                      </div>
+                                    </div>
+                                `
+                            });
+                        } catch (err) {
+                            console.error('Failed to send Student Corner unlock email:', err);
+                        }
+                    }
+                }
+                await referrer.save();
+            }
+        }
+
+        // Create new user with referralCode always set to username
         user = new User({
             username,
             email,
-            password // plain password, hashing will be done in pre-save hook
+            password, // plain password, hashing will be done in pre-save hook
+            referralCode: username,
+            referredBy
         });
 
         await user.save();
@@ -781,6 +830,19 @@ router.post('/unblock/:userId', auth, async (req, res) => {
 
 // Save push subscription for web push notifications
 router.post('/save-subscription', auth, savePushSubscription);
+
+// Referral Leaderboard
+router.get('/leaderboard', async (req, res) => {
+    try {
+        const users = await User.find()
+            .select('username referralCount studentCornerUnlocked profilePicture')
+            .sort({ referralCount: -1, username: 1 })
+            .limit(50);
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
 
 // Add a catch-all for unmatched routes at the end for debugging
 router.use((req, res) => {

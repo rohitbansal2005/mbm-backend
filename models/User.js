@@ -188,7 +188,26 @@ const userSchema = new mongoose.Schema({
                 auth: String
             }
         }
-    ]
+    ],
+    // Referral system fields
+    referralCode: {
+        type: String,
+        unique: true,
+        sparse: true // allow null/undefined
+    },
+    referredBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    referralCount: {
+        type: Number,
+        default: 0
+    },
+    studentCornerUnlocked: {
+        type: Boolean,
+        default: false
+    },
 });
 
 // Hash password before saving
