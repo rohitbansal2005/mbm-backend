@@ -110,8 +110,8 @@ router.post('/', [auth, upload.single('coverImage'), [
         const group = await newGroup.save();
         
         // Populate the group with member details before sending response
-        await group.populate('members', 'username fullName profilePicture role');
-        await group.populate('admins', 'username fullName profilePicture role');
+        await group.populate('members', 'username fullName profilePicture role isPremium');
+        await group.populate('admins', 'username fullName profilePicture role isPremium');
         
         res.json(group);
     } catch (err) {
@@ -126,9 +126,9 @@ router.post('/', [auth, upload.single('coverImage'), [
 router.get('/', auth, async (req, res) => {
     try {
         const groups = await Group.find()
-            .populate('creator', 'username profilePicture')
-            .populate('members', 'username fullName profilePicture role')
-            .populate('admins', 'username fullName profilePicture role')
+            .populate('creator', 'username profilePicture isPremium')
+            .populate('members', 'username fullName profilePicture role isPremium')
+            .populate('admins', 'username fullName profilePicture role isPremium')
             .sort({ createdAt: -1 });
 
         // Filter groups: show only if user is member, admin, or creator, or if group.type === 'admin'
@@ -154,10 +154,10 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
     try {
         const group = await Group.findById(req.params.id)
-            .populate('creator', 'username profilePicture')
-            .populate('members', 'username fullName profilePicture role')
-            .populate('admins', 'username fullName profilePicture role')
-            .populate('pendingMembers', 'username profilePicture');
+            .populate('creator', 'username profilePicture isPremium')
+            .populate('members', 'username fullName profilePicture role isPremium')
+            .populate('admins', 'username fullName profilePicture role isPremium')
+            .populate('pendingMembers', 'username fullName profilePicture isPremium');
 
         if (!group) {
             return res.status(404).json({ msg: 'Group not found' });

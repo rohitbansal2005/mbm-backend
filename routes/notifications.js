@@ -10,7 +10,7 @@ router.get('/', auth, async (req, res) => {
     try {
         const userId = req.user._id || req.user.userId;
         let notifications = await Notification.find({ recipient: userId })
-            .populate('sender', 'username profilePicture')
+            .populate('sender', 'username fullName profilePicture')
             .sort({ createdAt: -1 })
             .limit(50);
         // Filter out notifications from blocked users

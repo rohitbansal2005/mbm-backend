@@ -274,7 +274,7 @@ router.get('/followers/:userId', auth, async (req, res) => {
             following: userId,
             status: 'accepted'
         })
-        .populate('follower', 'username fullName profilePicture role')
+        .populate('follower', 'username fullName profilePicture role isPremium')
         .sort({ createdAt: -1 });
 
         // Return the full follow object, not just the follower details
@@ -344,7 +344,7 @@ router.get('/following/:userId', auth, async (req, res) => {
             follower: userId,
             status: 'accepted'
         })
-        .populate('following', 'username fullName profilePicture role')
+        .populate('following', 'username fullName profilePicture role isPremium')
         .sort({ createdAt: -1 });
 
         // Return the full follow object, not just the following details
@@ -363,7 +363,7 @@ router.get('/pending', auth, async (req, res) => {
             following: req.user._id,
             status: 'pending'
         })
-        .populate('follower', 'username fullName profilePicture role')
+        .populate('follower', 'username fullName profilePicture role isPremium')
         .sort({ createdAt: -1 });
 
         res.json(pendingRequests);

@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
   try {
     const events = await Event.find()
       .sort({ createdAt: -1 })
-      .populate('organizer', 'username profilePicture');
+      .populate('organizer', 'username fullName profilePicture');
     
     // Add user's reaction status if user is authenticated
     if (req.user) {
@@ -212,7 +212,7 @@ router.get('/upcoming', auth, async (req, res) => {
     })
     .sort({ date: 1 })
     .limit(5)
-    .populate('organizer', 'username profilePicture')
+    .populate('organizer', 'username fullName profilePicture')
     .select('title date description location attendees');
 
     res.json(upcomingEvents);
@@ -225,8 +225,8 @@ router.get('/upcoming', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id)
-      .populate('organizer', 'username profilePicture')
-      .populate('attendees', 'username profilePicture');
+      .populate('organizer', 'username fullName profilePicture')
+      .populate('attendees', 'username fullName profilePicture');
     
     if (!event) {
       return res.status(404).json({ message: 'Event not found' });

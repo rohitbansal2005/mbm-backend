@@ -84,7 +84,7 @@ router.post('/:id/photo', auth, cloudinaryUpload.single('photo'), async (req, re
                 } 
             },
             { new: true }
-        ).populate('user', 'username email');
+        ).populate('user', 'username fullName email profilePicture');
 
         // Also update the user's profilePicture field
         await User.findByIdAndUpdate(
@@ -124,30 +124,30 @@ router.get('/:id', auth, async (req, res) => {
 
         // First try to find student by ID
         let student = await Student.findById(req.params.id)
-            .populate('user', 'username email profilePicture')
+            .populate('user', 'username fullName email profilePicture')
             .populate('projects')
-            .populate('followers', 'username email profilePicture')
-            .populate('following', 'username email profilePicture')
+            .populate('followers', 'username fullName email profilePicture')
+            .populate('following', 'username fullName email profilePicture')
             .populate({
                 path: 'posts',
                 populate: {
                     path: 'author',
-                    select: 'username profilePicture'
+                    select: 'username fullName profilePicture'
                 }
             });
 
         // If not found by ID, try to find by user ID
         if (!student) {
             student = await Student.findOne({ user: req.params.id })
-                .populate('user', 'username email profilePicture')
+                .populate('user', 'username fullName email profilePicture')
                 .populate('projects')
-                .populate('followers', 'username email profilePicture')
-                .populate('following', 'username email profilePicture')
+                .populate('followers', 'username fullName email profilePicture')
+                .populate('following', 'username fullName email profilePicture')
                 .populate({
                     path: 'posts',
                     populate: {
                         path: 'author',
-                        select: 'username profilePicture'
+                        select: 'username fullName profilePicture'
                     }
                 });
         }
@@ -158,11 +158,11 @@ router.get('/:id', auth, async (req, res) => {
 
         // Get populated data
         const populatedStudent = await Student.findById(student._id)
-            .populate('user', 'username email profilePicture')
+            .populate('user', 'username fullName email profilePicture')
             .populate('posts')
             .populate('connections')
-            .populate('followers', 'username email profilePicture')
-            .populate('following', 'username email profilePicture')
+            .populate('followers', 'username fullName email profilePicture')
+            .populate('following', 'username fullName email profilePicture')
             .populate({
                 path: 'projects',
                 options: { 
@@ -379,7 +379,7 @@ router.put('/:id', auth, async (req, res) => {
         console.log('Profile updated successfully');
 
         // Populate user details
-        await updatedStudent.populate('user', 'username email');
+        await updatedStudent.populate('user', 'username fullName email');
         
         // Return the updated student
         res.json(updatedStudent);
@@ -464,7 +464,7 @@ router.post('/', auth, async (req, res) => {
 
         // Populate the user field
         const populatedProfile = await Student.findById(newProfile._id)
-            .populate('user', 'username email profilePicture');
+            .populate('user', 'username fullName email profilePicture');
 
         res.status(201).json(populatedProfile);
     } catch (error) {

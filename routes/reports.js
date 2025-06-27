@@ -11,13 +11,13 @@ router.get('/', [auth, admin], async (req, res) => {
     try {
         console.log('Fetching reports...');
         const reports = await Report.find()
-            .populate('reporter', 'username email')
+            .populate('reporter', 'username fullName email')
             .populate({
                 path: 'reportedItem',
                 select: 'username email content title', // Adjust fields based on itemType
                 options: { lean: true }
             })
-            .populate('resolvedBy', 'username email')
+            .populate('resolvedBy', 'username fullName email')
             .sort({ createdAt: -1 });
 
         console.log(`Found ${reports.length} reports`);
@@ -99,13 +99,13 @@ router.patch('/:id', [auth, admin], async (req, res) => {
 router.get('/:id', [auth, admin], async (req, res) => {
     try {
         const report = await Report.findById(req.params.id)
-            .populate('reporter', 'username email')
+            .populate('reporter', 'username fullName email')
             .populate({
                 path: 'reportedItem',
                 select: 'username email content title', // Adjust fields based on itemType
                 options: { lean: true }
             })
-            .populate('resolvedBy', 'username email');
+            .populate('resolvedBy', 'username fullName email');
 
         if (!report) {
             return res.status(404).json({ message: 'Report not found' });
