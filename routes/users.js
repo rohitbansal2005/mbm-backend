@@ -465,7 +465,7 @@ router.post('/', async (req, res) => {
 
         // Referral logic
         let referredBy = null;
-        if (referralCode) {
+        if (referralCode && referralCode !== username) {
             const referrer = await User.findOne({ referralCode });
             if (referrer) {
                 referredBy = referrer._id;
