@@ -484,7 +484,7 @@ router.post('/', async (req, res) => {
                                     <div style="background: #f5f7fa; padding: 32px 0; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif;">
                                       <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 32px 28px;">
                                         <div style="text-align: center;">
-                                          <img src='https://mbmconnect.com/mbmlogo.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
+                                          <img src='https://mbmconnect.vercel.app/mbmlogo.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
                                           <h1 style="color: #1976d2; margin-bottom: 8px; font-size: 2.2rem;">Congratulations, <span style='color:#ff9800;'>${referrer.username}</span>!</h1>
                                         </div>
                                         <p style="color: #444; font-size: 1.05rem; line-height: 1.7; margin-bottom: 18px;">
@@ -493,7 +493,7 @@ router.post('/', async (req, res) => {
                                           <br>
                                           Explore exclusive resources, mentorship, and more.<br>
                                           <br>
-                                          <a href="https://mbmconnect.com/student-corner" style="background: #1976d2; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Go to Student Corner</a>
+                                          <a href="https://mbmconnect.vercel.app/student-corner" style="background: #1976d2; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Go to Student Corner</a>
                                         </p>
                                         <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px 0;" />
                                         <p style="color: #bbb; font-size: 0.93rem; text-align: center;">With ❤️ from the MBMConnect Team</p>
@@ -545,7 +545,7 @@ router.post('/', async (req, res) => {
                         <div style="background: #f5f7fa; padding: 32px 0; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif;">
                           <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 32px 28px;">
                             <div style="text-align: center;">
-                              <img src='https://mbmconnect.com/logo192.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
+                              <img src='https://mbmconnect.vercel.app/logo192.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
                               <h1 style="color: #1976d2; margin-bottom: 8px; font-size: 2.2rem;">Welcome to <span style='color:#ff9800;'>MBMConnect</span>!</h1>
                               <h2 style="color: #333; margin-bottom: 16px; font-size: 1.3rem; font-weight: 400;">Hi ${username},</h2>
                             </div>
@@ -834,11 +834,15 @@ router.post('/save-subscription', auth, savePushSubscription);
 // Referral Leaderboard
 router.get('/leaderboard', async (req, res) => {
     try {
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = parseInt(req.query.skip) || 0;
         const users = await User.find()
             .select('username referralCount studentCornerUnlocked profilePicture')
             .sort({ referralCount: -1, username: 1 })
-            .limit(50);
-        res.json(users);
+            .skip(skip)
+            .limit(limit);
+        const total = await User.countDocuments();
+        res.json({ users, total });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
