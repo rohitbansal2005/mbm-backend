@@ -56,8 +56,8 @@ router.get('/', auth, async (req, res) => {
             ]
         })
         .sort({ createdAt: -1 })
-        .populate('sender', 'username fullName profilePicture avatar role isPremium')
-        .populate('recipient', 'username fullName profilePicture avatar role isPremium');
+        .populate('sender', 'username fullName profilePicture avatar role isPremium badgeType')
+        .populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType');
 
         const formattedMessages = messages.map(formatMessage);
         res.json(formattedMessages);
@@ -78,9 +78,9 @@ router.get('/:userId', auth, async (req, res) => {
                 { sender: req.params.userId, recipient: req.user._id }
             ]
         })
-        .sort({ createdAt: 1 })
-        .populate('sender', 'username fullName profilePicture avatar role isPremium')
-        .populate('recipient', 'username fullName profilePicture avatar role isPremium');
+        .populate('sender', 'username fullName profilePicture avatar role isPremium badgeType')
+        .populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType')
+        .sort({ createdAt: 1 });
 
         const formattedMessages = messages.map(formatMessage);
         res.json(formattedMessages);
@@ -131,8 +131,8 @@ router.post(
             await newMessage.save();
 
             // Populate sender and recipient details
-            await newMessage.populate('sender', 'username fullName profilePicture avatar role isPremium');
-            await newMessage.populate('recipient', 'username fullName profilePicture avatar role isPremium');
+            await newMessage.populate('sender', 'username fullName profilePicture avatar role isPremium badgeType');
+            await newMessage.populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType');
 
             const formattedMessage = formatMessage(newMessage);
 
@@ -200,8 +200,8 @@ router.put(
             await message.save();
 
             // Populate sender and recipient details
-            await message.populate('sender', 'username fullName profilePicture avatar role isPremium');
-            await message.populate('recipient', 'username fullName profilePicture avatar role isPremium');
+            await message.populate('sender', 'username fullName profilePicture avatar role isPremium badgeType');
+            await message.populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType');
 
             const formattedMessage = formatMessage(message);
 
@@ -293,6 +293,59 @@ router.post('/mark-all-read', auth, async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// Get all conversations for the current user
+router.get('/conversations', auth, async (req, res) => {
+    try {
+        const conversations = await Message.aggregate([
+            {
+                $match: {
+                    $or: [
+                        { sender: req.user._id },
+                        { recipient: req.user._id }
+                    ]
+                }
+            },
+            {
+                $sort: { createdAt: -1 }
+            },
+            {
+                $group: {
+                    _id: {
+                        $cond: [
+                            { $eq: ['$sender', req.user._id] },
+                            '$recipient',
+                            '$sender'
+                        ]
+                    },
+                    lastMessage: { $first: '$$ROOT' }
+                }
+            }
+        ]);
+
+        // Populate user details for each conversation
+        const populatedConversations = await Message.populate(conversations, [
+            {
+                path: 'lastMessage.sender',
+                select: 'username fullName profilePicture avatar role isPremium badgeType'
+            },
+            {
+                path: 'lastMessage.recipient',
+                select: 'username fullName profilePicture avatar role isPremium badgeType'
+            }
+        ]);
+
+        const formattedConversations = populatedConversations.map(conv => ({
+            ...conv,
+            lastMessage: formatMessage(conv.lastMessage)
+        }));
+
+        res.json(formattedConversations);
+    } catch (error) {
+        console.error('Error fetching conversations:', error);
+        res.status(500).json({ message: 'Error fetching conversations' });
+    }
 });
 
 module.exports = router;

@@ -110,8 +110,9 @@ router.post('/', [auth, upload.single('coverImage'), [
         const group = await newGroup.save();
         
         // Populate the group with member details before sending response
-        await group.populate('members', 'username fullName profilePicture role isPremium');
-        await group.populate('admins', 'username fullName profilePicture role isPremium');
+        await group.populate('members', 'username fullName profilePicture role isPremium badgeType');
+        await group.populate('admins', 'username fullName profilePicture role isPremium badgeType');
+        await group.populate('creator', 'username fullName profilePicture role isPremium badgeType');
         
         res.json(group);
     } catch (err) {
@@ -125,10 +126,10 @@ router.post('/', [auth, upload.single('coverImage'), [
 // @access  Private
 router.get('/', auth, async (req, res) => {
     try {
-        const groups = await Group.find()
-            .populate('creator', 'username fullName profilePicture isPremium')
-            .populate('members', 'username fullName profilePicture role isPremium')
-            .populate('admins', 'username fullName profilePicture role isPremium')
+        const groups = await Group.find({})
+            .populate('members', 'username fullName profilePicture role isPremium badgeType')
+            .populate('admins', 'username fullName profilePicture role isPremium badgeType')
+            .populate('creator', 'username fullName profilePicture role isPremium badgeType')
             .sort({ createdAt: -1 });
 
         // Filter groups: show only if user is member, admin, or creator, or if group.type === 'admin'
@@ -143,8 +144,8 @@ router.get('/', auth, async (req, res) => {
 
         res.json(filteredGroups);
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        console.error('Error fetching groups:', err);
+        res.status(500).json({ message: 'Error fetching groups' });
     }
 });
 
@@ -154,10 +155,10 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
     try {
         const group = await Group.findById(req.params.id)
-            .populate('creator', 'username fullName profilePicture isPremium')
-            .populate('members', 'username fullName profilePicture role isPremium')
-            .populate('admins', 'username fullName profilePicture role isPremium')
-            .populate('pendingMembers', 'username fullName profilePicture isPremium');
+            .populate('members', 'username fullName profilePicture role isPremium badgeType')
+            .populate('admins', 'username fullName profilePicture role isPremium badgeType')
+            .populate('creator', 'username fullName profilePicture role isPremium badgeType')
+            .populate('pendingMembers', 'username fullName profilePicture isPremium badgeType');
 
         if (!group) {
             return res.status(404).json({ msg: 'Group not found' });

@@ -46,8 +46,8 @@ router.get('/', async (req, res) => {
         const skip = (page - 1) * (limit || 0);
 
         const posts = await Post.find({ author: { $exists: true, $ne: null } })
-            .populate('author', 'username fullName profilePicture avatar role isPremium')
-            .populate('likes', 'username fullName profilePicture avatar isPremium')
+            .populate('author', 'username fullName profilePicture avatar role isPremium badgeType')
+            .populate('likes', 'username fullName profilePicture avatar isPremium badgeType')
             .populate({
                 path: 'comments.author',
                 select: 'username fullName profilePicture avatar role isPremium badgeType'
@@ -141,7 +141,7 @@ router.post('/', auth, upload.single('media'), async (req, res) => {
     console.log('Post saved successfully:', savedPost);
     
     // Populate author information
-    await savedPost.populate('author', 'username fullName profilePicture avatar role isPremium');
+    await savedPost.populate('author', 'username fullName profilePicture avatar role isPremium badgeType');
     console.log('Post populated with author info:', savedPost);
     
     // Emit Socket.IO event for new post
@@ -215,8 +215,8 @@ router.put('/:id/like', auth, async (req, res) => {
         // else: user is unliking, so don't add back
 
         const updatedPost = await post.save();
-        await updatedPost.populate('author', 'username fullName profilePicture avatar role isPremium');
-        await updatedPost.populate('likes', 'username fullName profilePicture avatar isPremium');
+        await updatedPost.populate('author', 'username fullName profilePicture avatar role isPremium badgeType');
+        await updatedPost.populate('likes', 'username fullName profilePicture avatar isPremium badgeType');
         res.json(updatedPost);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -251,8 +251,8 @@ router.post('/:id/comment', auth, async (req, res) => {
         // Get the new comment (last in array)
         const newComment = updatedPost.comments[updatedPost.comments.length - 1];
         // Populate author for the post and comments
-        await updatedPost.populate('author', 'username fullName profilePicture avatar role isPremium');
-        await updatedPost.populate('comments.author', 'username fullName profilePicture avatar role isPremium');
+        await updatedPost.populate('author', 'username fullName profilePicture avatar role isPremium badgeType');
+        await updatedPost.populate('comments.author', 'username fullName profilePicture avatar role isPremium badgeType');
         // Emit socket event for new comment
         const io = req.app.get('io');
         if (io) {
@@ -418,7 +418,7 @@ router.put('/:id', auth, async (req, res) => {
         const updatedPost = await post.save();
         console.log('Post saved successfully');
 
-        await updatedPost.populate('author', 'username fullName profilePicture avatar role isPremium');
+        await updatedPost.populate('author', 'username fullName profilePicture avatar role isPremium badgeType');
         res.json(updatedPost);
     } catch (error) {
         console.error('Error in edit post route:', {
@@ -458,8 +458,8 @@ router.delete('/:postId/comment/:commentId', auth, async (req, res) => {
       c => c._id.toString() !== req.params.commentId
     );
     await post.save();
-    await post.populate('author', 'username fullName profilePicture avatar role isPremium');
-    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium');
+    await post.populate('author', 'username fullName profilePicture avatar role isPremium badgeType');
+    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium badgeType');
     // Emit socket event for comment deletion
     const io = req.app.get('io');
     if (io) {
@@ -490,7 +490,7 @@ router.put('/:postId/comment/:commentId', auth, async (req, res) => {
     comment.edited = true;
     comment.editedAt = new Date();
     await post.save();
-    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium');
+    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium badgeType');
     // Emit socket event for comment edit
     const io = req.app.get('io');
     if (io) {
@@ -610,8 +610,8 @@ router.get('/user/:userId', auth, async (req, res) => {
     }
     // If no student profile, allow (legacy users)
     const posts = await Post.find({ author: userId })
-      .populate('author', 'username fullName profilePicture avatar role isPremium')
-      .populate('likes', 'username fullName profilePicture avatar isPremium')
+      .populate('author', 'username fullName profilePicture avatar role isPremium badgeType')
+      .populate('likes', 'username fullName profilePicture avatar isPremium badgeType')
       .populate({
         path: 'comments.author',
         select: 'username fullName profilePicture avatar role isPremium badgeType'
@@ -683,8 +683,8 @@ router.get('/saved', auth, async (req, res) => {
         const savedPosts = await Post.find({
             _id: { $in: user.savedPosts }
         })
-        .populate('author', 'username fullName profilePicture avatar role isPremium')
-        .populate('likes', 'username fullName profilePicture avatar isPremium')
+        .populate('author', 'username fullName profilePicture avatar role isPremium badgeType')
+        .populate('likes', 'username fullName profilePicture avatar isPremium badgeType')
         .populate({
             path: 'comments.author',
             select: 'username fullName profilePicture avatar role isPremium badgeType'
@@ -739,8 +739,8 @@ router.get('/trending', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
-      .populate('author', 'username fullName profilePicture avatar role isPremium')
-      .populate('likes', 'username fullName profilePicture avatar isPremium')
+      .populate('author', 'username fullName profilePicture avatar role isPremium badgeType')
+      .populate('likes', 'username fullName profilePicture avatar isPremium badgeType')
       .populate('comments.author', 'username fullName profilePicture avatar role isPremium badgeType')
       .populate('comments.replies.author', 'username fullName profilePicture avatar role isPremium badgeType');
     if (!post) return res.status(404).json({ message: 'Post not found' });
@@ -826,7 +826,7 @@ router.post('/:postId/comment/:commentId/like', auth, async (req, res) => {
     }
     
     await post.save();
-    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium');
+    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium badgeType');
     res.json(post);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -846,7 +846,7 @@ router.post('/:postId/comment/:commentId/reply', auth, async (req, res) => {
       createdAt: new Date()
     });
     await post.save();
-    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium');
+    await post.populate('comments.author', 'username fullName profilePicture avatar role isPremium badgeType');
     res.json(post);
   } catch (error) {
     res.status(400).json({ message: error.message });
