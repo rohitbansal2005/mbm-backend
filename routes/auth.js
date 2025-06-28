@@ -168,7 +168,7 @@ router.post('/verify-otp', async (req, res) => {
     // Mark email as verified
     otpStore.delete(email);
     
-    res.json({ message: 'OTP verified successfully' });
+    res.json({ success: true, message: 'OTP verified successfully' });
   } catch (error) {
     console.error('Verify OTP error:', error);
     res.status(500).json({ message: 'Failed to verify OTP' });
