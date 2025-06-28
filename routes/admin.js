@@ -200,4 +200,14 @@ router.get('/threats', auth, admin, async (req, res) => {
   }
 });
 
+// Add pending-users route
+router.get('/pending-users', [auth, admin], async (req, res) => {
+  try {
+    const pendingUsers = await User.find({ isApproved: false });
+    res.json(pendingUsers);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch pending users', error: error.message });
+  }
+});
+
 module.exports = router; 
