@@ -65,6 +65,24 @@ const verifyRecaptcha = async (req, res, next) => {
             });
         }
 
+        // Strict hostname check
+        const expectedHostname = process.env.RECAPTCHA_HOSTNAME || 'localhost';
+        if (hostname !== expectedHostname) {
+            return res.status(400).json({
+                error: 'reCAPTCHA hostname mismatch',
+                code: 'RECAPTCHA_HOSTNAME_MISMATCH'
+            });
+        }
+
+        // If v3, require minimum score
+        if (typeof score === 'number' && score < 0.7) {
+            return res.status(400).json({
+                error: 'reCAPTCHA score too low. Are you a bot?',
+                code: 'RECAPTCHA_SCORE_LOW',
+                score
+            });
+        }
+
         // Log successful verification for monitoring
         console.log('reCAPTCHA verification successful:', {
             ip: req.ip,

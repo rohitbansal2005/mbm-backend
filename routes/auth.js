@@ -59,6 +59,29 @@ const generateOTP = () => {
 
 // Send OTP for registration
 router.post('/send-otp', verifyRecaptcha, async (req, res) => {
+  // Honeypot check
+  if (req.body.website) {
+    return res.status(400).json({ message: 'Bot detected (honeypot)' });
+  }
+  // Device fingerprint logging
+  if (req.body.fingerprint) {
+    console.log('Device fingerprint:', req.body.fingerprint);
+  }
+  // IP reputation check (using ipqualityscore.com free API)
+  try {
+    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const apiKey = process.env.IPQS_API_KEY;
+    if (apiKey) {
+      const axios = require('axios');
+      const ipqsUrl = `https://ipqualityscore.com/api/json/ip/${apiKey}/${ip}`;
+      const ipqsRes = await axios.get(ipqsUrl);
+      if (ipqsRes.data && (ipqsRes.data.fraud_score > 70 || ipqsRes.data.bot_status)) {
+        return res.status(400).json({ message: 'Suspicious IP detected. Request blocked.' });
+      }
+    }
+  } catch (ipErr) {
+    console.warn('IP reputation check failed:', ipErr.message);
+  }
   try {
     const { email } = req.body;
 
