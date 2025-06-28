@@ -650,6 +650,7 @@ router.put('/:id', async (req, res) => {
             user.lastUsernameChange = now;
             user.username = req.body.username;
         }
+        if (req.body.fullName) user.fullName = req.body.fullName;
         if (req.body.email) user.email = req.body.email;
         if (req.body.bio) user.bio = req.body.bio;
         if (req.body.profilePicture) user.profilePicture = req.body.profilePicture;
