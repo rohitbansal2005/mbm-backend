@@ -13,25 +13,26 @@ const auth = async (req, res, next) => {
         }
 
         // Strip "Bearer " from the header
-        token = authHeader.split(' ')[1];
+        const token = authHeader.split(' ')[1];
         
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         console.log('Token decoded:', decoded ? '{...user data...}' : 'null');
         
-        // Ensure _id exists in the token
-        if (!decoded._id) {
-            console.error('Token missing _id:', decoded);
+        // Check for userId in the token (from login/register routes)
+        const userId = decoded.userId || decoded._id;
+        if (!userId) {
+            console.error('Token missing userId:', decoded);
             return res.status(401).json({ 
-                message: 'Invalid token format: missing _id',
+                message: 'Invalid token format: missing userId',
                 error: 'Token verification failed'
             });
         }
 
         // Get user from database
-        const user = await User.findById(decoded._id);
+        const user = await User.findById(userId);
         if (!user) {
-            console.error('User not found:', decoded._id);
+            console.error('User not found:', userId);
             return res.status(401).json({ 
                 message: 'User not found',
                 error: 'Token verification failed'
