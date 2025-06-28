@@ -244,6 +244,11 @@ const userSchema = new mongoose.Schema({
     year: {
         type: String,
         default: ''
+    },
+    // Store registration IP address
+    ipAddress: {
+        type: String,
+        default: ''
     }
 });
 

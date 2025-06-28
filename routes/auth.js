@@ -649,6 +649,9 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
     // Generate referral code if not provided
     const userReferralCode = referralCode || `REF${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
+    // Get user IP address
+    const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
     // Create user (auto-approved)
     const user = new User({
       username,
@@ -662,7 +665,8 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
       referralCode: userReferralCode,
       isApproved: true, // Auto-approved
       isVerified: true, // Auto-verified for now
-      registrationDate: new Date()
+      registrationDate: new Date(),
+      ipAddress: ip // Store IP address
     });
 
     await user.save();
