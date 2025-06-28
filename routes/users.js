@@ -841,6 +841,37 @@ router.get('/leaderboard', auth, async (req, res) => {
     }
 });
 
+// Change password (settings page)
+router.put('/change-password', auth, async (req, res) => {
+    try {
+        const { oldPassword, newPassword } = req.body;
+        if (!oldPassword || !newPassword) {
+            return res.status(400).json({ message: 'Old and new password are required.' });
+        }
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found.' });
+        }
+        // Verify old password
+        const isMatch = await user.comparePassword(oldPassword);
+        if (!isMatch) {
+            return res.status(401).json({ message: 'Old password is incorrect.' });
+        }
+        // Validate new password (min 8 chars, at least 1 uppercase, 1 lowercase, 1 number, 1 special char)
+        const strong = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+        if (!strong.test(newPassword)) {
+            return res.status(400).json({ message: 'New password must be at least 8 characters and include uppercase, lowercase, number, and special character.' });
+        }
+        // Hash and update password
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+        res.json({ message: 'Password changed successfully.' });
+    } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ message: 'Failed to change password.' });
+    }
+});
+
 // Add a catch-all for unmatched routes at the end for debugging
 router.use((req, res) => {
     res.status(404).json({ error: 'Route not found', path: req.originalUrl });
