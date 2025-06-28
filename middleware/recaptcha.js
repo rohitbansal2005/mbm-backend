@@ -42,13 +42,15 @@ const verifyRecaptcha = async (req, res, next) => {
         const verificationUrl = 'https://www.google.com/recaptcha/api/siteverify';
         const secretKey = process.env.RECAPTCHA_SECRET_KEY;
         
-        const response = await axios.post(verificationUrl, null, {
-            params: {
+        const response = await axios.post(
+            verificationUrl,
+            new URLSearchParams({
                 secret: secretKey,
                 response: recaptchaToken,
                 remoteip: req.ip
-            }
-        });
+            }).toString(),
+            { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        );
 
         const { success, score, action, challenge_ts, hostname, 'error-codes': errorCodes } = response.data;
 
