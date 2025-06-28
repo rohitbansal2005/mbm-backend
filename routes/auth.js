@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const { verifyRecaptcha } = require('../middleware/recaptcha');
-const recaptcha = require('../middleware/recaptcha');
 
 // Store OTPs temporarily (in production, use Redis or similar)
 const otpStore = new Map();
@@ -57,7 +56,7 @@ const generateOTP = () => {
 };
 
 // Send OTP for registration
-router.post('/send-otp', recaptcha.verify, async (req, res) => {
+router.post('/send-otp', verifyRecaptcha, async (req, res) => {
   try {
     const { email, phone } = req.body;
 
@@ -94,7 +93,7 @@ router.post('/send-otp', recaptcha.verify, async (req, res) => {
 });
 
 // Verify OTP
-router.post('/verify-otp', recaptcha.verify, async (req, res) => {
+router.post('/verify-otp', verifyRecaptcha, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -132,12 +131,6 @@ router.post('/resend-otp', async (req, res) => {
     try {
         const { email } = req.body;
         
-        // 🚫 REGISTRATION DISABLED - No new users allowed
-        return res.status(403).json({
-            success: false,
-            message: 'Registration is currently disabled. No new users can register at this time.'
-        });
-
         const otp = generateOTP();
         otpStore.set(email, {
             otp,
@@ -419,7 +412,7 @@ router.post('/admin/login', async (req, res) => {
 });
 
 // Login route
-router.post('/login', recaptcha.verify, async (req, res) => {
+router.post('/login', verifyRecaptcha, async (req, res) => {
   try {
     const { email, password, recaptchaToken } = req.body;
 
@@ -549,7 +542,7 @@ router.get('/test-email', async (req, res) => {
 });
 
 // Registration route with ultimate security
-router.post('/register', recaptcha.verify, async (req, res) => {
+router.post('/register', verifyRecaptcha, async (req, res) => {
   try {
     const { username, email, password, fullName, phone, department, year, recaptchaToken } = req.body;
 

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const webpush = require('web-push');
 const ultimateSecurity = require('./middleware/ultimateSecurity');
+const { aiSecurityMiddleware } = require('./middleware/aiSecurity');
 
 // Import models
 require('./models/Comment');
@@ -97,6 +98,9 @@ const protectedRoutes = [
 protectedRoutes.forEach(route => {
     app.use(route, ultimateSecurity.enhancedAuth);
 });
+
+// AI Security Middleware (after auth middleware)
+app.use(aiSecurityMiddleware);
 
 // 🚀 ROUTE REGISTRATION
 

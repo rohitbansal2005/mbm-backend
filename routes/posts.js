@@ -105,74 +105,67 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Create a post
-router.post('/', [auth, postLimiter], upload.single('media'), async (req, res) => {
+// Create post with AI content moderation
+router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
-    console.log('Creating post with data:', {
-      content: req.body.content,
-      hasMedia: !!req.file,
-      userId: req.user._id,
-      body: req.body,
-      file: req.file
-    });
+    const { content } = req.body;
+    const userId = req.user.id;
 
-    if (!req.body.content && !req.file) {
-      return res.status(400).json({ msg: 'Please provide content or an image' });
-    }
-    if (req.body.content && filter.isProfane(req.body.content)) {
-      return res.status(400).json({ msg: 'Inappropriate language is not allowed in posts.' });
-    }
-
-    // Prevent banned users from posting
-    const user = await User.findById(req.user._id);
-    if (user && user.isBanned) {
-      return res.status(403).json({ msg: 'You are banned from posting.' });
+    // AI Content Analysis
+    let contentAnalysis = null;
+    if (content) {
+      contentAnalysis = req.aiSecurity?.textAnalysis;
+      
+      // If content is flagged as harmful, reject the post
+      if (contentAnalysis && !contentAnalysis.safe) {
+        return res.status(400).json({
+          message: 'Post contains inappropriate content and cannot be published.',
+          flags: contentAnalysis.flags,
+          score: contentAnalysis.score
+        });
+      }
     }
 
-    let media = '';
-    let mediaType = '';
-
-    if (req.file) {
-      // Save Cloudinary URL
-      media = req.file.path; // Cloudinary URL
-      mediaType = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
+    // Check user behavior risk
+    const behaviorAnalysis = req.aiSecurity?.behavior;
+    if (behaviorAnalysis && behaviorAnalysis.isSuspicious) {
+      return res.status(429).json({
+        message: 'Posting temporarily restricted due to suspicious activity.',
+        riskScore: behaviorAnalysis.riskScore
+      });
     }
 
+    // Create post
     const post = new Post({
-      author: req.user._id,
-      content: req.body.content || '',
-      media,
-      mediaType
+      user: userId,
+      content,
+      image: req.file ? req.file.filename : null,
+      aiAnalysis: {
+        contentScore: contentAnalysis?.score || 100,
+        contentFlags: contentAnalysis?.flags || [],
+        behaviorScore: behaviorAnalysis?.riskScore || 0,
+        behaviorFlags: behaviorAnalysis?.flags || []
+      }
     });
 
-    console.log('Attempting to save post:', post);
+    await post.save();
 
-    const savedPost = await post.save();
-    console.log('Post saved successfully:', savedPost);
-    
-    // Populate author information
-    await savedPost.populate('author', 'username fullName profilePicture avatar role isPremium badgeType');
-    console.log('Post populated with author info:', savedPost);
-    
-    // Emit Socket.IO event for new post
-    const io = req.app.get('io');
-    if (io) {
-        console.log('Emitting newPost event');
-        io.emit('newPost', savedPost);
-    }
+    // Populate user data
+    await post.populate('user', 'username fullName profilePicture badgeType');
 
-    res.status(201).json(savedPost);
-  } catch (err) {
-    console.error('Error creating post:', {
-      message: err.message,
-      stack: err.stack,
-      name: err.name,
-      code: err.code
+    res.status(201).json({
+      message: 'Post created successfully',
+      post,
+      aiAnalysis: {
+        contentSafe: contentAnalysis?.safe !== false,
+        contentScore: contentAnalysis?.score || 100,
+        behaviorScore: behaviorAnalysis?.riskScore || 0
+      }
     });
-    res.status(500).json({ 
-      message: 'Error creating post',
-      error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong!'
-    });
+
+  } catch (error) {
+    console.error('Create post error:', error);
+    res.status(500).json({ message: 'Failed to create post' });
   }
 });
 
