@@ -453,78 +453,79 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Create a new user
+// Register user
 router.post('/', async (req, res) => {
     try {
-        const { username, email, password, inviteCode, referralCode } = req.body;
 
-        if (inviteCode !== 'MBM2005') {
-            return res.status(400).json({ message: 'Invalid invite code. Only college students can register.' });
+        const { username, email, password, captchaAnswer } = req.body;
+
+        // Simple CAPTCHA protection
+        const expectedAnswer = 15; // 10 + 5 = 15
+        if (!captchaAnswer || parseInt(captchaAnswer) !== expectedAnswer) {
+            return res.status(400).json({ 
+                message: 'Please solve the CAPTCHA correctly. What is 10 + 5?' 
+            });
         }
 
-        // Check if user already exists
-        let user = await User.findOne({ email });
-        if (user) {
-            return res.status(400).json({ message: 'User already exists' });
+        // Enhanced validation for suspicious patterns
+        const suspiciousUsernamePatterns = [
+            /^(\w+)_(\w+)_(\d{3,4})$/,  // Pattern like "Name_Surname_123"
+            /^(\w+)(\d{2,4})$/,         // Pattern like "name123"
+            /^(\w+)(\d{2,4})(\w+)$/     // Pattern like "name123suffix"
+        ];
+
+        const suspiciousEmailDomains = [
+            'tutanota.com', 'fastmail.com', 'zoho.com', 'yandex.com',
+            'msn.com', 'rediffmail.com', 'yahoo.co.in', 'yahoo.com',
+            'aol.com', 'protonmail.com', 'hotmail.com', 'outlook.com'
+        ];
+
+        // Check for suspicious username patterns
+        const isSuspiciousUsername = suspiciousUsernamePatterns.some(pattern => 
+            pattern.test(username)
+        );
+
+        if (isSuspiciousUsername) {
+            return res.status(400).json({ 
+                message: 'Username pattern not allowed. Please choose a different username.' 
+            });
         }
 
-        // Referral logic
-        let referredBy = null;
-        if (referralCode && referralCode !== username) {
-            const referrer = await User.findOne({ referralCode });
-            if (referrer) {
-                referredBy = referrer._id;
-                referrer.referralCount = (referrer.referralCount || 0) + 1;
-                // Unlock Student Corner if 10 or more referrals
-                if (referrer.referralCount === 10) {
-                    referrer.studentCornerUnlocked = true;
-                    // Send congratulation email
-                    if (transporter) {
-                        try {
-                            await transporter.sendMail({
-                                from: process.env.EMAIL_USER,
-                                to: referrer.email,
-                                subject: 'Congratulations! Student Corner Unlocked 🎓',
-                                html: `
-                                    <div style="background: #f5f7fa; padding: 32px 0; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif;">
-                                      <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); padding: 32px 28px;">
-                                        <div style="text-align: center;">
-                                          <img src='https://mbmconnect.vercel.app/mbmlogo.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
-                                          <h1 style="color: #1976d2; margin-bottom: 8px; font-size: 2.2rem;">Congratulations, <span style='color:#ff9800;'>${referrer.username}</span>!</h1>
-                                        </div>
-                                        <p style="color: #444; font-size: 1.05rem; line-height: 1.7; margin-bottom: 18px;">
-                                          🎉 <b>You have successfully referred 10 friends!</b><br>
-                                          <b>Student Corner</b> is now <span style='color:green;'>unlocked</span> for your account.<br>
-                                          <br>
-                                          Explore exclusive resources, mentorship, and more.<br>
-                                          <br>
-                                          <a href="https://mbmconnect.vercel.app/student-corner" style="background: #1976d2; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Go to Student Corner</a>
-                                        </p>
-                                        <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px 0;" />
-                                        <p style="color: #bbb; font-size: 0.93rem; text-align: center;">With ❤️ from the MBMConnect Team</p>
-                                      </div>
-                                    </div>
-                                `
-                            });
-                        } catch (err) {
-                            console.error('Failed to send Student Corner unlock email:', err);
-                        }
-                    }
-                }
-                await referrer.save();
-            }
+        // Check for suspicious email domains
+        const emailDomain = email.split('@')[1];
+        if (suspiciousEmailDomains.includes(emailDomain)) {
+            return res.status(400).json({ 
+                message: 'Email domain not allowed. Please use a different email address.' 
+            });
         }
 
-        // Create new user with referralCode always set to username
-        user = new User({
+        // Check if username already exists
+        const existingUser = await User.findOne({ username });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Username already exists' });
+        }
+
+        // Check if email already exists
+        const existingEmail = await User.findOne({ email });
+        if (existingEmail) {
+            return res.status(400).json({ message: 'Email already registered' });
+        }
+
+        // Create user
+        const user = new User({
             username,
             email,
-            password, // plain password, hashing will be done in pre-save hook
-            referralCode: username,
-            referredBy
+            password
         });
 
         await user.save();
+
+        // Create JWT token
+        const token = jwt.sign(
+            { userId: user._id },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
 
         // Create student profile
         const student = new Student({
@@ -552,62 +553,39 @@ router.post('/', async (req, res) => {
                             <div style="text-align: center;">
                               <img src='https://mbmconnect.vercel.app/mbmlogo.png' alt='MBMConnect Logo' style='width: 64px; height: 64px; margin-bottom: 16px;' />
                               <h1 style="color: #1976d2; margin-bottom: 8px; font-size: 2.2rem;">Welcome to <span style='color:#ff9800;'>MBMConnect</span>!</h1>
-                              <h2 style="color: #333; margin-bottom: 16px; font-size: 1.3rem; font-weight: 400;">Hi ${username},</h2>
+                              <h2 style="color: #333; margin-bottom: 16px; font-size: 1.3rem; font-weight: 400;">Hi ${username}</h2>
+                              <p style="color: #666; line-height: 1.6; margin-bottom: 24px;">Welcome to MBMConnect! Your account has been successfully created. You can now connect with fellow students, share updates, and stay connected with your college community.</p>
+                              <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+                                <p style="margin: 0; color: #666; font-size: 0.9rem;"><strong>Your login details:</strong></p>
+                                <p style="margin: 4px 0 0 0; color: #333; font-family: monospace;">Username: ${username}</p>
+                                <p style="margin: 4px 0 0 0; color: #333; font-family: monospace;">Email: ${email}</p>
+                              </div>
+                              <a href="https://mbmconnect.vercel.app/login" style="display: inline-block; background: #1976d2; color: white; text-decoration: none; padding: 12px 24px; border-radius: 6px; font-weight: 500;">Login to MBMConnect</a>
+                              <p style="color: #999; font-size: 0.85rem; margin-top: 24px;">If you have any questions, feel free to contact our support team.</p>
                             </div>
-                            <p style="color: #444; font-size: 1.05rem; line-height: 1.7; margin-bottom: 18px;">
-                              🎉 <b>Congratulations!</b> You are now a part of the <b>MBMConnect</b> family.<br>
-                              Connect, share, and grow with your college community.<br>
-                            </p>
-                            <div style="background: #fffbe6; border: 1px solid #ffe082; border-radius: 8px; padding: 16px 18px; margin-bottom: 18px; color: #795548; font-size: 1.04rem;">
-                              <b>Referral Program:</b><br>
-                              Invite your friends to MBMConnect using your referral code (your username) or your referral link.<br>
-                              When 10 friends join using your code, you'll unlock <b>Student Corner</b> (exclusive resources) and appear on the leaderboard!<br>
-                              <span style="color:#1976d2;">Share your code and start inviting now!</span>
-                            </div>
-                            <span style="color: #1976d2; font-weight: 500;">What's next?</span><br>
-                            <ul style="margin: 10px 0 18px 20px; color: #555;">
-                              <li>👥 <b>Find and connect</b> with classmates and alumni</li>
-                              <li>📝 <b>Share posts, ideas, and achievements</b></li>
-                              <li>💬 <b>Join groups, discussions, and events</b></li>
-                              <li>🔔 <b>Stay updated</b> with campus news and notifications</li>
-                            </ul>
-                            <div style="text-align: center; margin: 32px 0;">
-                              <a href="https://mbmconnect.vercel.app" style="background: #1976d2; color: #fff; text-decoration: none; padding: 14px 36px; border-radius: 6px; font-size: 1.1rem; font-weight: 600; letter-spacing: 1px; display: inline-block; box-shadow: 0 2px 8px rgba(25,118,210,0.08);">Explore MBMConnect</a>
-                            </div>
-                            <p style="color: #888; font-size: 0.98rem; text-align: center; margin-top: 24px;">If you have any questions, just reply to this email.<br>We're here to help you!</p>
-                            <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0 16px 0;" />
-                            <p style="color: #bbb; font-size: 0.93rem; text-align: center;">With ❤️ from the MBMConnect Team</p>
                           </div>
                         </div>
                     `
                 });
-            } catch (err) {
-                console.error('Failed to send welcome email:', err);
+            } catch (emailError) {
+                console.error('Error sending welcome email:', emailError);
             }
         }
 
-        // Create JWT token
-        const token = jwt.sign(
-            { _id: user._id, role: user.role },
-            process.env.JWT_SECRET || 'your_jwt_secret_key_here',
-            { expiresIn: '24h' }
-        );
-
         res.status(201).json({
+            message: 'User registered successfully',
             token,
             user: {
                 _id: user._id,
                 username: user.username,
                 email: user.email,
-                profilePicture: user.profilePicture,
-                bio: user.bio,
-                followers: user.followers,
-                following: user.following,
-                createdAt: user.createdAt
+                role: user.role
             }
         });
+
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Registration error:', error);
+        res.status(500).json({ message: 'Error registering user' });
     }
 });
 

@@ -12,9 +12,19 @@ const Filter = require('bad-words');
 const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
 const { sendPushNotification, sendPushNotificationToUser } = require('../utils/webPush');
+const rateLimit = require('express-rate-limit');
 
 // In-memory array for demo (use DB in production)
 const postReports = [];
+
+// Strict rate limiting for post creation to prevent bot spam
+const postLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 3, // limit each IP to 3 posts per 5 minutes
+  message: 'Too many posts created. Please wait 5 minutes before posting again.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Helper for deep population of comments and replies
 const deepPopulateComments = async (postOrPosts) => {
@@ -96,7 +106,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create a post
-router.post('/', auth, upload.single('media'), async (req, res) => {
+router.post('/', [auth, postLimiter], upload.single('media'), async (req, res) => {
   try {
     console.log('Creating post with data:', {
       content: req.body.content,

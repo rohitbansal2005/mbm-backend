@@ -8,6 +8,16 @@ const Filter = require('bad-words');
 const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
 const { sendPushNotification } = require('../utils/webPush');
+const rateLimit = require('express-rate-limit');
+
+// Strict rate limiting for message sending to prevent bot spam
+const messageLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 5, // limit each IP to 5 messages per minute
+  message: 'Too many messages sent. Please wait 1 minute before sending again.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Helper function to format message with proper image URLs
 const formatMessage = (message) => {
@@ -97,7 +107,8 @@ router.post(
     '/:userId',
     [
         auth,
-        [check('text', 'Text is required').not().isEmpty()]
+        [check('text', 'Text is required').not().isEmpty()],
+        messageLimiter
     ],
     async (req, res) => {
         const errors = validationResult(req);
