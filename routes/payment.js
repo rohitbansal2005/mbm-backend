@@ -1,6 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+// Initialize Stripe only if secret key is provided
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+    stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+} else {
+    console.warn('Stripe secret key not configured. Payment features will be disabled.');
+}
+
 const auth = require('../middleware/auth');
 const Payment = require('../models/Payment');
 const User = require('../models/User');
@@ -8,6 +16,10 @@ const User = require('../models/User');
 // Create payment intent for verification
 router.post('/create-verification-payment', auth, async (req, res) => {
     try {
+        if (!stripe) {
+            return res.status(503).json({ error: 'Payment service not configured' });
+        }
+
         const { amount = 100 } = req.body; // Default ₹100 for verification
 
         const paymentIntent = await stripe.paymentIntents.create({
@@ -41,6 +53,10 @@ router.post('/create-verification-payment', auth, async (req, res) => {
 // Handle successful payment
 router.post('/verify-payment', auth, async (req, res) => {
     try {
+        if (!stripe) {
+            return res.status(503).json({ error: 'Payment service not configured' });
+        }
+
         const { paymentId } = req.body;
 
         const payment = await Payment.findById(paymentId);

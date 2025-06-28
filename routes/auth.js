@@ -14,40 +14,42 @@ const otpStore = new Map();
 let transporter;
 try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        throw new Error('Email configuration is missing. Please set EMAIL_USER and EMAIL_PASS in .env file');
-    }
-
-    console.log('Configuring email with:', {
-        user: process.env.EMAIL_USER,
-        host: process.env.EMAIL_HOST,
-        port: process.env.EMAIL_PORT,
-        // Don't log the actual password
-        hasPassword: !!process.env.EMAIL_PASS
-    });
-
-    transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: process.env.EMAIL_PORT || 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
+        console.warn('Email configuration is missing. Please set EMAIL_USER and EMAIL_PASS in .env file for email functionality');
+        transporter = null;
+    } else {
+        console.log('Configuring email with:', {
             user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        },
-        tls: {
-            rejectUnauthorized: false // Only for development
-        }
-    });
+            host: process.env.EMAIL_HOST,
+            port: process.env.EMAIL_PORT,
+            // Don't log the actual password
+            hasPassword: !!process.env.EMAIL_PASS
+        });
 
-    // Verify transporter configuration
-    transporter.verify(function(error, success) {
-        if (error) {
-            console.error('Email configuration error:', error);
-        } else {
-            console.log('Email server is ready to send messages');
-        }
-    });
+        transporter = nodemailer.createTransport({
+            host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+            port: process.env.EMAIL_PORT || 587,
+            secure: false, // true for 465, false for other ports
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            },
+            tls: {
+                rejectUnauthorized: false // Only for development
+            }
+        });
+
+        // Verify transporter configuration
+        transporter.verify(function(error, success) {
+            if (error) {
+                console.error('Email configuration error:', error);
+            } else {
+                console.log('Email server is ready to send messages');
+            }
+        });
+    }
 } catch (error) {
     console.error('Failed to configure email:', error);
+    transporter = null;
 }
 
 // Generate OTP
@@ -82,6 +84,14 @@ router.post('/send-otp', verifyRecaptcha, async (req, res) => {
 
     // Send email with OTP
     try {
+      if (!transporter) {
+        console.log(`OTP for ${email}: ${otp} (Email not configured)`);
+        return res.json({ 
+          success: true,
+          message: 'OTP sent successfully (check console for OTP)' 
+        });
+      }
+      
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: email,
@@ -154,6 +164,14 @@ router.post('/resend-otp', async (req, res) => {
         });
 
         // Send email
+        if (!transporter) {
+            console.log(`OTP for ${email}: ${otp} (Email not configured)`);
+            return res.json({
+                success: true,
+                message: 'OTP resent successfully (check console for OTP)'
+            });
+        }
+        
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
@@ -206,6 +224,14 @@ router.post('/forgot-password', async (req, res) => {
 
         // Send email
         console.log('Attempting to send email...');
+        if (!transporter) {
+            console.log(`OTP for ${email}: ${otp} (Email not configured)`);
+            return res.json({
+                success: true,
+                message: 'OTP sent successfully (check console for OTP)'
+            });
+        }
+        
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,

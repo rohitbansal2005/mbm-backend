@@ -1,14 +1,23 @@
 const webpush = require('web-push');
 const PushSubscription = require('../models/PushSubscription');
 
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BAo3Qf5fNiL46ibvZLzgik6t0byN02E8VjfxWN7XT3OJ3L98APkMJCBfFpe1dKwnSfG-695d45cfOFqVqo6SB_o';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'YOUR_PRIVATE_KEY_HERE';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 
-webpush.setVapidDetails(
-  'mailto:mbmconnect.official@gmail.com',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+// Only set VAPID details if both keys are properly configured
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(
+      'mailto:mbmconnect.official@gmail.com',
+      VAPID_PUBLIC_KEY,
+      VAPID_PRIVATE_KEY
+    );
+  } catch (error) {
+    console.warn('VAPID keys not properly configured, push notifications disabled:', error.message);
+  }
+} else {
+  console.warn('VAPID keys not configured, push notifications will be disabled');
+}
 
 // Send a push notification to all of a user's subscriptions
 async function sendPushNotificationToUser(userId, payload) {

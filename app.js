@@ -6,7 +6,6 @@ const ultimateSecurity = require('./middleware/ultimateSecurity');
 const { aiSecurityMiddleware } = require('./middleware/aiSecurity');
 
 // Import models
-require('./models/Comment');
 require('./models/User');
 require('./models/Post');
 require('./models/Message');
@@ -131,14 +130,23 @@ app.use('/api/students', studentsRoutes);
 app.use('/api/upload', uploadRoutes);
 
 // 🔔 WEB PUSH NOTIFICATION SETUP
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || '<YOUR_VAPID_PUBLIC_KEY_HERE>';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '<YOUR_VAPID_PRIVATE_KEY_HERE>';
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 
-webpush.setVapidDetails(
-    'mailto:admin@mbmconnect.com',
-    VAPID_PUBLIC_KEY,
-    VAPID_PRIVATE_KEY
-);
+// Only set VAPID details if both keys are properly configured
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(
+        'mailto:admin@mbmconnect.com',
+        VAPID_PUBLIC_KEY,
+        VAPID_PRIVATE_KEY
+    );
+  } catch (error) {
+    console.warn('VAPID keys not properly configured, push notifications disabled:', error.message);
+  }
+} else {
+  console.warn('VAPID keys not configured, push notifications will be disabled');
+}
 
 // Enhanced push subscription route with security
 app.post('/api/save-subscription', ultimateSecurity.enhancedAuth, async (req, res) => {
