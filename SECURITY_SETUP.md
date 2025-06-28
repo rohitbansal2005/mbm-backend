@@ -11,8 +11,8 @@ MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret_key
 
 # Google reCAPTCHA Configuration
-RECAPTCHA_SITE_KEY=6Ld1qXArAAAAAGivuhRoiZiu7hyROaXfO5OYWyq-
-RECAPTCHA_SECRET_KEY=6Ld1qXArAAAAAD07Xq_3S48pSIPmYr-DNbrTfubE
+RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
+RECAPTCHA_SECRET_KEY=your_recaptcha_secret_key_here
 
 # Email Configuration (for OTP)
 EMAIL_USER=your_email@gmail.com
@@ -30,7 +30,7 @@ NODE_ENV=production
 ### Frontend (.env file)
 ```env
 # Google reCAPTCHA Site Key
-REACT_APP_RECAPTCHA_SITE_KEY=6Ld1qXArAAAAAGivuhRoiZiu7hyROaXfO5OYWyq-
+REACT_APP_RECAPTCHA_SITE_KEY=your_recaptcha_site_key_here
 
 # API Configuration
 REACT_APP_API_URL=https://mbmconnect.onrender.com/api
