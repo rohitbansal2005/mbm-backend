@@ -137,7 +137,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 
     // Create post
     const post = new Post({
-      author: userId,
+      author: req.user._id,
       content,
       image: req.file ? req.file.filename : null,
       aiAnalysis: {
