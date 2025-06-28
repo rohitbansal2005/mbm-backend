@@ -119,7 +119,7 @@ router.post('/send-otp', verifyRecaptcha, async (req, res) => {
 });
 
 // Verify OTP
-router.post('/verify-otp', verifyRecaptcha, async (req, res) => {
+router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
 

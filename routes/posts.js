@@ -137,7 +137,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 
     // Create post
     const post = new Post({
-      user: userId,
+      author: userId,
       content,
       image: req.file ? req.file.filename : null,
       aiAnalysis: {
@@ -151,7 +151,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     await post.save();
 
     // Populate user data
-    await post.populate('user', 'username fullName profilePicture badgeType');
+    await post.populate('author', 'username fullName profilePicture badgeType');
 
     res.status(201).json({
       message: 'Post created successfully',
