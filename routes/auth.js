@@ -58,16 +58,14 @@ const generateOTP = () => {
 // Send OTP for registration
 router.post('/send-otp', verifyRecaptcha, async (req, res) => {
   try {
-    const { email, phone } = req.body;
+    const { email } = req.body;
 
-    if (!email || !phone) {
-      return res.status(400).json({ message: 'Email and phone are required' });
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
     }
 
     // Check if user already exists
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { phone }] 
-    });
+    const existingUser = await User.findOne({ email });
 
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
@@ -82,10 +80,28 @@ router.post('/send-otp', verifyRecaptcha, async (req, res) => {
       expiresAt: Date.now() + 5 * 60 * 1000
     });
 
-    // In production, send OTP via SMS/Email service
-    console.log(`OTP for ${email}: ${otp}`);
+    // Send email with OTP
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'MBMConnect Email Verification',
+        html: `
+          <h1>Email Verification</h1>
+          <p>Your verification code is: <strong>${otp}</strong></p>
+          <p>This code will expire in 5 minutes.</p>
+        `
+      });
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError);
+      // Still log OTP for development
+      console.log(`OTP for ${email}: ${otp}`);
+    }
 
-    res.json({ message: 'OTP sent successfully' });
+    res.json({ 
+      success: true,
+      message: 'OTP sent successfully' 
+    });
   } catch (error) {
     console.error('Send OTP error:', error);
     res.status(500).json({ message: 'Failed to send OTP' });
@@ -544,11 +560,16 @@ router.get('/test-email', async (req, res) => {
 // Registration route with ultimate security
 router.post('/register', verifyRecaptcha, async (req, res) => {
   try {
-    const { username, email, password, fullName, phone, department, year, recaptchaToken } = req.body;
+    const { username, email, password, fullName, phone, department, year, inviteCode, referralCode, recaptchaToken } = req.body;
 
-    // Ultimate security validation
-    if (!username || !email || !password || !fullName || !phone || !department || !year) {
-      return res.status(400).json({ message: 'All fields are required' });
+    // Basic validation
+    if (!username || !email || !password || !fullName) {
+      return res.status(400).json({ message: 'Username, email, password, and full name are required' });
+    }
+
+    // Validate invite code
+    if (inviteCode !== 'MBM2005') {
+      return res.status(400).json({ message: 'Invalid invite code. Only college students can register.' });
     }
 
     // Strict input validation
@@ -564,10 +585,6 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
       return res.status(400).json({ message: 'Full name must be 2-50 characters' });
     }
 
-    if (phone.length < 10 || phone.length > 15) {
-      return res.status(400).json({ message: 'Invalid phone number' });
-    }
-
     // Check if user already exists
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 
@@ -580,39 +597,49 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // Generate referral code if not provided
+    const userReferralCode = referralCode || `REF${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+
     // Create user (auto-approved)
     const user = new User({
       username,
       email,
       password: hashedPassword,
       fullName,
-      phone,
-      department,
-      year,
+      phone: phone || '',
+      department: department || 'General',
+      year: year || '1st Year',
+      inviteCode,
+      referralCode: userReferralCode,
       isApproved: true, // Auto-approved
-      isVerified: false, // Requires email verification
+      isVerified: true, // Auto-verified for now
       registrationDate: new Date()
     });
 
     await user.save();
 
-    // Send verification email
-    const verificationToken = jwt.sign(
-      { userId: user._id },
+    // Generate JWT token for immediate login
+    const token = jwt.sign(
+      { userId: user._id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '7d' }
     );
 
-    // Store verification token
-    user.verificationToken = verificationToken;
-    await user.save();
-
-    // Send verification email (implement your email service here)
-    // await sendVerificationEmail(user.email, verificationToken);
-
     res.status(201).json({ 
-      message: 'Registration successful! Please check your email for verification.',
-      userId: user._id 
+      success: true,
+      message: 'Registration successful!',
+      token,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isVerified: user.isVerified,
+        isPremium: user.isPremium,
+        badgeType: user.badgeType,
+        referralCode: user.referralCode
+      }
     });
 
   } catch (error) {
