@@ -221,6 +221,30 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    // Admin approval fields
+    isApproved: {
+        type: Boolean,
+        default: false
+    },
+    verificationToken: {
+        type: String
+    },
+    registrationDate: {
+        type: Date,
+        default: Date.now
+    },
+    phone: {
+        type: String,
+        default: ''
+    },
+    department: {
+        type: String,
+        default: ''
+    },
+    year: {
+        type: String,
+        default: ''
+    }
 });
 
 // Hash password before saving
