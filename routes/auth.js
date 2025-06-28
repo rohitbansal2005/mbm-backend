@@ -60,6 +60,12 @@ router.post('/send-otp', async (req, res) => {
         const { email } = req.body;
         console.log('Received OTP request for email:', email);
         
+        // 🚫 REGISTRATION DISABLED - No new users allowed
+        return res.status(403).json({
+            success: false,
+            message: 'Registration is currently disabled. No new users can register at this time.'
+        });
+
         if (!email) {
             return res.status(400).json({
                 success: false,
@@ -144,6 +150,13 @@ router.post('/send-otp', async (req, res) => {
 router.post('/verify-otp', async (req, res) => {
     try {
         const { email, otp } = req.body;
+        
+        // 🚫 REGISTRATION DISABLED - No new users allowed
+        return res.status(403).json({
+            success: false,
+            message: 'Registration is currently disabled. No new users can register at this time.'
+        });
+
         const storedData = otpStore.get(email);
 
         if (!storedData) {
@@ -190,6 +203,12 @@ router.post('/resend-otp', async (req, res) => {
     try {
         const { email } = req.body;
         
+        // 🚫 REGISTRATION DISABLED - No new users allowed
+        return res.status(403).json({
+            success: false,
+            message: 'Registration is currently disabled. No new users can register at this time.'
+        });
+
         const otp = generateOTP();
         otpStore.set(email, {
             otp,

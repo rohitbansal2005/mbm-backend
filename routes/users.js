@@ -456,6 +456,10 @@ router.post('/login', async (req, res) => {
 // Register user
 router.post('/', async (req, res) => {
     try {
+        // 🚫 REGISTRATION DISABLED - No new users allowed
+        return res.status(403).json({ 
+            message: 'Registration is currently disabled. No new users can register at this time.' 
+        });
 
         const { username, email, password, captchaAnswer } = req.body;
 
