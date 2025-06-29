@@ -9,6 +9,7 @@ const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
 const { sendPushNotification } = require('../utils/webPush');
 const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 // Strict rate limiting for message sending to prevent bot spam
 const messageLimiter = rateLimit({
@@ -70,7 +71,23 @@ router.get('/', auth, async (req, res) => {
         .populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType');
 
         const formattedMessages = messages.map(formatMessage);
-        res.json(formattedMessages);
+        
+        // Decrypt messages before sending to frontend
+        const decryptedMessages = formattedMessages.map(message => {
+            try {
+                const algorithm = 'aes-256-cbc';
+                const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
+                const decipher = crypto.createDecipher(algorithm, key);
+                let decrypted = decipher.update(message.text, 'hex', 'utf8');
+                decrypted += decipher.final('utf8');
+                message.decryptedText = decrypted;
+            } catch {
+                message.decryptedText = '';
+            }
+            return message;
+        });
+        
+        res.json(decryptedMessages);
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ message: 'Server error' });
@@ -93,7 +110,23 @@ router.get('/:userId', auth, async (req, res) => {
         .sort({ createdAt: 1 });
 
         const formattedMessages = messages.map(formatMessage);
-        res.json(formattedMessages);
+        
+        // Decrypt messages before sending to frontend
+        const decryptedMessages = formattedMessages.map(message => {
+            try {
+                const algorithm = 'aes-256-cbc';
+                const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
+                const decipher = crypto.createDecipher(algorithm, key);
+                let decrypted = decipher.update(message.text, 'hex', 'utf8');
+                decrypted += decipher.final('utf8');
+                message.decryptedText = decrypted;
+            } catch {
+                message.decryptedText = '';
+            }
+            return message;
+        });
+        
+        res.json(decryptedMessages);
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ message: 'Server error' });
@@ -116,10 +149,6 @@ router.post(
             return res.status(400).json({ errors: errors.array() });
         }
 
-        if (filter.isProfane(req.body.text)) {
-            return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
-        }
-
         try {
             const recipient = await User.findById(req.params.userId);
             if (!recipient) {
@@ -133,10 +162,23 @@ router.post(
                 return res.status(403).json({ message: 'You cannot send messages to this user.' });
             }
 
+            // Decrypt the text for profanity check
+            const algorithm = 'aes-256-cbc';
+            const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
+            const decipher = crypto.createDecipher(algorithm, key);
+            let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+
+            if (filter.isProfane(decrypted)) {
+                return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
+            }
+
             const newMessage = new Message({
                 sender: req.user._id,
                 recipient: req.params.userId,
-                text: req.body.text
+                text: req.body.text,
+                media: req.body.media || null,
+                mediaType: req.body.mediaType || null
             });
 
             await newMessage.save();
@@ -146,6 +188,8 @@ router.post(
             await newMessage.populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType');
 
             const formattedMessage = formatMessage(newMessage);
+            // Add decrypted text for frontend
+            formattedMessage.decryptedText = decrypted;
 
             // Emit the new message through Socket.IO
             const io = req.app.get('io');
@@ -160,7 +204,7 @@ router.post(
             try {
                 await sendPushNotification(req.params.userId, {
                     title: 'New Message',
-                    body: `${req.user.username} sent you a message`,
+                    body: `${req.user.username}: ${decrypted.substring(0, 50)}${decrypted.length > 50 ? '...' : ''}`,
                     icon: '/mbmlogo.png',
                     data: { url: '/messages/' + req.user._id }
                 });
@@ -191,10 +235,6 @@ router.put(
             return res.status(400).json({ errors: errors.array() });
         }
 
-        if (filter.isProfane(req.body.text)) {
-            return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
-        }
-
         try {
             const message = await Message.findById(req.params.messageId);
             if (!message) {
@@ -206,6 +246,18 @@ router.put(
                 return res.status(403).json({ message: 'Not authorized to edit this message' });
             }
 
+            // Decrypt the text for profanity check
+            const algorithm = 'aes-256-cbc';
+            const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
+            const decipher = crypto.createDecipher(algorithm, key);
+            let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+
+            if (filter.isProfane(decrypted)) {
+                return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
+            }
+
+            // The text is already encrypted from frontend, so save it directly
             message.text = req.body.text;
             message.updatedAt = Date.now();
             await message.save();
@@ -215,6 +267,8 @@ router.put(
             await message.populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType');
 
             const formattedMessage = formatMessage(message);
+            // Add decrypted text for frontend
+            formattedMessage.decryptedText = decrypted;
 
             // Emit the updated message through Socket.IO
             const io = req.app.get('io');

@@ -12,7 +12,7 @@ router.post('/video', upload.single('file'), (req, res) => {
   res.json({ url: req.file.path });
 });
 
-// For document/file upload (pdf, doc, docx, ppt, pptx, txt, xls, xlsx, etc.)
+// For general file upload
 router.post('/file', upload.single('file'), (req, res) => {
   res.json({ url: req.file.path });
 });

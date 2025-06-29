@@ -15,6 +15,7 @@ const filter = new Filter();
 const createNotification = require('../utils/createNotification');
 const cloudinary = require('../config/cloudinary');
 const { sendPushNotification } = require('../utils/webPush');
+const crypto = require('crypto');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -444,7 +445,23 @@ router.get('/:groupId/messages', auth, async (req, res) => {
         const messages = await GroupMessage.find({ group: req.params.groupId })
             .populate('sender', 'username profilePicture avatar')
             .sort({ createdAt: 1 });
-        res.json(messages);
+            
+        // Decrypt messages before sending to frontend
+        const decryptedMessages = messages.map(message => {
+            try {
+                const algorithm = 'aes-256-cbc';
+                const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
+                const decipher = crypto.createDecipher(algorithm, key);
+                let decrypted = decipher.update(message.text, 'hex', 'utf8');
+                decrypted += decipher.final('utf8');
+                message.decryptedText = decrypted;
+            } catch {
+                message.decryptedText = '';
+            }
+            return message;
+        });
+        
+        res.json(decryptedMessages);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -463,13 +480,24 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         if (!group.members.map(m => m.toString()).includes(req.user._id.toString())) {
              return res.status(403).json({ msg: 'You are not a member of this group' });
         }
-        if (filter.isProfane(req.body.text)) {
+        
+        // Decrypt the text for profanity check
+        const algorithm = 'aes-256-cbc';
+        const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
+        const decipher = crypto.createDecipher(algorithm, key);
+        let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        if (filter.isProfane(decrypted)) {
             return res.status(400).json({ msg: 'Inappropriate language is not allowed in group messages.' });
         }
+        
         const newMessage = new GroupMessage({
             group: req.params.groupId,
             sender: req.user._id,
             text: req.body.text,
+            media: req.body.media || null,
+            mediaType: req.body.mediaType || null
         });
         await newMessage.save();
         await newMessage.populate('sender', 'username profilePicture avatar');
@@ -477,7 +505,7 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         const mentionRegex = /@([a-zA-Z0-9_]+)/g;
         const mentionedUsernames = [];
         let match;
-        while ((match = mentionRegex.exec(req.body.text)) !== null) {
+        while ((match = mentionRegex.exec(decrypted)) !== null) {
             mentionedUsernames.push(match[1]);
         }
         if (mentionedUsernames.length > 0) {
@@ -508,7 +536,8 @@ router.post('/:groupId/messages', auth, async (req, res) => {
                     _id: group._id,
                     name: group.name,
                     description: group.description
-                }
+                },
+                decryptedText: decrypted
             };
             io.to(req.params.groupId).emit('receiveGroupMessage', messageWithGroup);
         }
@@ -518,7 +547,7 @@ router.post('/:groupId/messages', auth, async (req, res) => {
             for (const memberId of memberIds) {
                 await sendPushNotification(memberId, {
                     title: `New message in ${group.name}`,
-                    body: `${req.user.username} sent a message in group ${group.name}`,
+                    body: `${req.user.username}: ${decrypted.substring(0, 50)}${decrypted.length > 50 ? '...' : ''}`,
                     icon: '/mbmlogo.png',
                     data: { url: '/groups/' + group._id }
                 });
@@ -526,7 +555,12 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         } catch (err) {
             console.error('Push notification error (group):', err);
         }
-        res.json(newMessage);
+        
+        // Add decrypted text for frontend
+        const messageWithDecrypted = newMessage.toObject();
+        messageWithDecrypted.decryptedText = decrypted;
+        
+        res.json(messageWithDecrypted);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -546,13 +580,28 @@ router.put('/:groupId/messages/:messageId', auth, async (req, res) => {
         if (message.sender.toString() !== req.user._id.toString()) {
             return res.status(403).json({ msg: 'Not authorized to edit this message' });
         }
-        if (filter.isProfane(req.body.text)) {
+        
+        // Decrypt the text for profanity check
+        const algorithm = 'aes-256-cbc';
+        const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
+        const decipher = crypto.createDecipher(algorithm, key);
+        let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        if (filter.isProfane(decrypted)) {
             return res.status(400).json({ msg: 'Inappropriate language is not allowed in group messages.' });
         }
+        
+        // The text is already encrypted from frontend, so save it directly
         message.text = req.body.text;
         await message.save();
         await message.populate('sender', 'username profilePicture avatar');
-        res.json(message);
+        
+        // Add decrypted text for frontend
+        const messageWithDecrypted = message.toObject();
+        messageWithDecrypted.decryptedText = decrypted;
+        
+        res.json(messageWithDecrypted);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
