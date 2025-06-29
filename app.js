@@ -76,8 +76,13 @@ app.use('/api/users/login', ultimateSecurity.authRateLimit);
 // 10. POST RATE LIMITING
 app.use('/api/posts', ultimateSecurity.postRateLimit);
 
-// 11. MESSAGE RATE LIMITING
-app.use('/api/messages', ultimateSecurity.messageRateLimit);
+// 11. MESSAGE RATE LIMITING (skip /bulk-delete)
+app.use('/api/messages', (req, res, next) => {
+  if (req.path === '/bulk-delete') {
+    return next(); // Skip rate limiting for bulk-delete
+  }
+  return ultimateSecurity.messageRateLimit(req, res, next);
+});
 
 // 12. ENHANCED AUTH MIDDLEWARE for protected routes
 const protectedRoutes = [
