@@ -637,7 +637,10 @@ router.get('/test-email', async (req, res) => {
 // Registration route with ultimate security
 router.post('/register', verifyRecaptcha, async (req, res) => {
   try {
+    console.log('==== REGISTRATION ATTEMPT ====');
+    console.log('Full req.body:', req.body);
     let { username, email, password, fullName, phone, inviteCode, referralCode: friendReferralCode, recaptchaToken } = req.body;
+    console.log('Referral code received:', friendReferralCode);
     email = email.toLowerCase();
     // Basic validation
     if (!username || !email || !password || !fullName) {
