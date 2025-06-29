@@ -326,7 +326,8 @@ router.post('/verify-reset-otp', async (req, res) => {
 // Reset Password
 router.post('/reset-password', async (req, res) => {
     try {
-        const { email, otp, newPassword } = req.body;
+        let { email, otp, newPassword } = req.body;
+        email = email.toLowerCase(); // Always lowercase for lookup
         const storedData = otpStore.get(email);
 
         if (!storedData || storedData.type !== 'reset') {
@@ -352,7 +353,7 @@ router.post('/reset-password', async (req, res) => {
             });
         }
 
-        // Update password
+        // Update password (let pre-save hook hash it)
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json({
@@ -360,10 +361,7 @@ router.post('/reset-password', async (req, res) => {
                 message: 'User not found'
             });
         }
-
-        // Hash new password
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
+        user.password = newPassword; // Plain text, pre-save will hash
         await user.save();
 
         // Clear OTP
@@ -480,14 +478,17 @@ router.post('/admin/login', async (req, res) => {
 // Login route
 router.post('/login', verifyRecaptcha, async (req, res) => {
   try {
-    const { email, password, recaptchaToken } = req.body;
+    let { email, password, recaptchaToken } = req.body;
+    email = email.toLowerCase(); // Always lowercase for lookup
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    // Find user by email
+    // Find user by email (lowercase)
     const user = await User.findOne({ email });
+    console.log('Login attempt:', email);
+    console.log('User found:', !!user);
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -504,6 +505,7 @@ router.post('/login', verifyRecaptcha, async (req, res) => {
 
     // Verify password
     const isPasswordValid = await user.comparePassword(password);
+    console.log('Password valid:', isPasswordValid);
     if (!isPasswordValid) {
       // Increment failed login attempts
       await user.incrementLoginAttempts();
@@ -610,43 +612,35 @@ router.get('/test-email', async (req, res) => {
 // Registration route with ultimate security
 router.post('/register', verifyRecaptcha, async (req, res) => {
   try {
-    const { username, email, password, fullName, phone, department, year, inviteCode, referralCode: friendReferralCode, recaptchaToken } = req.body;
-
+    let { username, email, password, fullName, phone, inviteCode, referralCode: friendReferralCode, recaptchaToken } = req.body;
+    email = email.toLowerCase();
     // Basic validation
     if (!username || !email || !password || !fullName) {
       return res.status(400).json({ message: 'Username, email, password, and full name are required' });
     }
-
     // Validate invite code
     if (inviteCode !== 'MBM2005') {
       return res.status(400).json({ message: 'Invalid invite code. Only college students can register.' });
     }
-
     // Strict input validation
     if (username.length < 3 || username.length > 20) {
       return res.status(400).json({ message: 'Username must be 3-20 characters' });
     }
-
     if (password.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
-
     if (fullName.length < 2 || fullName.length > 50) {
       return res.status(400).json({ message: 'Full name must be 2-50 characters' });
     }
-
     // Check if user already exists
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 
     });
-
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
-
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
-
     // Generate a unique referral code for the new user (based on username)
     let myReferralCode = username;
     let exists = await User.findOne({ referralCode: myReferralCode });
@@ -656,21 +650,17 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
       exists = await User.findOne({ referralCode: myReferralCode });
       counter++;
     }
-
     // Get user IP address
     const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
-
     // Find the user who referred (if any)
     let referredBy = null;
     if (friendReferralCode) {
       const refUser = await User.findOne({ referralCode: friendReferralCode });
       if (refUser) {
         referredBy = refUser._id;
-        // Optionally, increment referralCount for refUser
         await User.updateOne({ _id: refUser._id }, { $inc: { referralCount: 1 } });
       }
     }
-
     // Create user (auto-approved)
     const user = new User({
       username,
@@ -678,8 +668,6 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
       password: hashedPassword,
       fullName,
       phone: phone || '',
-      department: department || 'General',
-      year: year || '1st Year',
       inviteCode,
       referralCode: myReferralCode, // always unique
       referredBy, // reference to the user who referred
@@ -688,9 +676,7 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
       registrationDate: new Date(),
       ipAddress: ip // Store IP address
     });
-
     await user.save();
-
     // Generate JWT token for immediate login
     const token = jwt.sign(
       { userId: user._id, role: user.role },
