@@ -237,14 +237,6 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
-    department: {
-        type: String,
-        default: ''
-    },
-    year: {
-        type: String,
-        default: ''
-    },
     // Store registration IP address
     ipAddress: {
         type: String,
