@@ -165,7 +165,8 @@ router.post(
             // Decrypt the text for profanity check
             const algorithm = 'aes-256-cbc';
             const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-            const decipher = crypto.createDecipher(algorithm, key);
+            const iv = Buffer.alloc(16, 0); // Use a fixed IV for compatibility
+            const decipher = crypto.createDecipheriv(algorithm, key, iv);
             let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
             decrypted += decipher.final('utf8');
 
@@ -249,7 +250,8 @@ router.put(
             // Decrypt the text for profanity check
             const algorithm = 'aes-256-cbc';
             const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-            const decipher = crypto.createDecipher(algorithm, key);
+            const iv = Buffer.alloc(16, 0); // Use a fixed IV for compatibility
+            const decipher = crypto.createDecipheriv(algorithm, key, iv);
             let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
             decrypted += decipher.final('utf8');
 

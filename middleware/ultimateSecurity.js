@@ -21,7 +21,7 @@ const ultimateSecurity = {
         legacyHeaders: false,
         skipSuccessfulRequests: false,
         keyGenerator: (req) => {
-            return req.ip + req.headers['user-agent'] + req.headers['x-forwarded-for'];
+            return req.ip + req.headers['user-agent'];
         }
     }),
 
