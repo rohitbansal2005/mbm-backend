@@ -103,7 +103,9 @@ router.get('/:userId', auth, async (req, res) => {
             $or: [
                 { sender: req.user._id, recipient: req.params.userId },
                 { sender: req.params.userId, recipient: req.user._id }
-            ]
+            ],
+            // Filter out messages deleted for current user
+            deletedFor: { $ne: req.user._id }
         })
         .populate('sender', 'username fullName profilePicture avatar role isPremium badgeType')
         .populate('recipient', 'username fullName profilePicture avatar role isPremium badgeType')
@@ -310,6 +312,42 @@ router.delete('/:messageId', auth, async (req, res) => {
     }
 });
 
+// @route   POST api/messages/:messageId/delete-for-me
+// @desc    Delete a message for current user only (like WhatsApp)
+// @access  Private
+router.post('/:messageId/delete-for-me', auth, async (req, res) => {
+    try {
+        const message = await Message.findById(req.params.messageId);
+        if (!message) {
+            return res.status(404).json({ message: 'Message not found' });
+        }
+
+        // Check if user is part of this conversation
+        if (String(message.sender) !== String(req.user._id) && String(message.recipient) !== String(req.user._id)) {
+            return res.status(403).json({ message: 'Not authorized to delete this message' });
+        }
+
+        // Add user to deletedFor array if not already there
+        if (!message.deletedFor.includes(req.user._id)) {
+            message.deletedFor.push(req.user._id);
+            await message.save();
+        }
+
+        // Emit the message deleted for user through Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            io.to(req.user._id.toString()).emit('messageDeletedForMe', {
+                messageId: req.params.messageId
+            });
+        }
+
+        res.json({ message: 'Message deleted for you' });
+    } catch (error) {
+        console.error('Error deleting message for user:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // @route   POST api/messages/mark-read/:userId
 // @desc    Mark all messages as read between current user and another user
 // @access  Private
@@ -448,15 +486,42 @@ router.post('/:messageId/report-delete', auth, async (req, res) => {
   }
 });
 
-// Bulk delete messages by IDs (only own messages)
+// Bulk delete messages by IDs (WhatsApp-style: own messages are deleted, others are 'delete for me')
 router.post('/bulk-delete', auth, async (req, res) => {
   const { messageIds } = req.body;
   if (!Array.isArray(messageIds) || messageIds.length === 0) {
     return res.status(400).json({ success: false, message: 'No messages selected.' });
   }
   const userId = req.user._id;
-  await Message.deleteMany({ _id: { $in: messageIds }, sender: userId });
-  res.json({ success: true, message: 'Selected messages deleted.' });
+
+  // Find all selected messages
+  const messages = await Message.find({ _id: { $in: messageIds } });
+
+  // Separate own and others' messages
+  const ownMessageIds = [];
+  const othersMessageIds = [];
+  messages.forEach(msg => {
+    if (String(msg.sender) === String(userId)) {
+      ownMessageIds.push(msg._id);
+    } else {
+      othersMessageIds.push(msg._id);
+    }
+  });
+
+  // Delete own messages
+  if (ownMessageIds.length > 0) {
+    await Message.deleteMany({ _id: { $in: ownMessageIds } });
+  }
+
+  // For others' messages, add user to deletedFor
+  if (othersMessageIds.length > 0) {
+    await Message.updateMany(
+      { _id: { $in: othersMessageIds } },
+      { $addToSet: { deletedFor: userId } }
+    );
+  }
+
+  res.json({ success: true, message: 'Selected messages deleted as per WhatsApp logic.' });
 });
 
 module.exports = router;

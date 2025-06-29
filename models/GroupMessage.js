@@ -27,6 +27,11 @@ const groupMessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: []
+  }],
+  deletedFor: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: []
   }]
 }, { timestamps: true });
 

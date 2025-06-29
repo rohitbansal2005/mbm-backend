@@ -445,7 +445,11 @@ router.put('/:id/remove-admin/:userId', auth, async (req, res) => {
 // @access  Private
 router.get('/:groupId/messages', auth, async (req, res) => {
     try {
-        const messages = await GroupMessage.find({ group: req.params.groupId })
+        const messages = await GroupMessage.find({ 
+            group: req.params.groupId,
+            // Filter out messages deleted for current user
+            deletedFor: { $ne: req.user._id }
+        })
             .populate('sender', 'username profilePicture avatar')
             .sort({ createdAt: 1 });
             
@@ -616,6 +620,44 @@ router.delete('/:groupId/messages/:messageId', auth, async (req, res) => {
         }
         await message.deleteOne();
         res.json({ msg: 'Message deleted', messageId: req.params.messageId });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   POST api/groups/:groupId/messages/:messageId/delete-for-me
+// @desc    Delete a group message for current user only (like WhatsApp)
+// @access  Private
+router.post('/:groupId/messages/:messageId/delete-for-me', auth, async (req, res) => {
+    try {
+        const message = await GroupMessage.findById(req.params.messageId);
+        if (!message) {
+            return res.status(404).json({ msg: 'Message not found' });
+        }
+
+        // Check if user is a member of the group
+        const group = await Group.findById(req.params.groupId);
+        if (!group || !group.members.map(m => m.toString()).includes(req.user._id.toString())) {
+            return res.status(403).json({ msg: 'Not authorized to delete this message' });
+        }
+
+        // Add user to deletedFor array if not already there
+        if (!message.deletedFor.includes(req.user._id)) {
+            message.deletedFor.push(req.user._id);
+            await message.save();
+        }
+
+        // Emit the message deleted for user through Socket.IO
+        const io = req.app.get('io');
+        if (io) {
+            io.to(req.user._id.toString()).emit('groupMessageDeletedForMe', {
+                messageId: req.params.messageId,
+                groupId: req.params.groupId
+            });
+        }
+
+        res.json({ msg: 'Message deleted for you' });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
