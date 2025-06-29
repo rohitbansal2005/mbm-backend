@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 
 const auth = async (req, res, next) => {
     try {
@@ -64,10 +65,11 @@ const auth = async (req, res, next) => {
         
         // Check for userId or _id in the token (support both payload styles)
         const userId = decoded.userId || decoded._id;
-        if (!userId) {
-            console.error('Token missing userId or _id:', decoded);
-            return res.status(401).json({ 
-                message: 'Invalid token format: missing userId or _id',
+        console.log('Decoded userId:', userId);
+        if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
+            console.error('Invalid userId:', userId);
+            return res.status(401).json({
+                message: 'Invalid user ID',
                 error: 'Token verification failed'
             });
         }
