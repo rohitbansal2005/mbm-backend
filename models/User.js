@@ -291,13 +291,20 @@ userSchema.methods.isLocked = function() {
 
 // Method to increment failed login attempts
 userSchema.methods.incrementLoginAttempts = async function() {
+    // If lockUntil is in the past, reset attempts
     if (this.lockUntil && this.lockUntil < Date.now()) {
         return await this.updateOne({
             $set: { failedLoginAttempts: 1 },
             $unset: { lockUntil: 1 }
         });
     }
-    
+    // If failedLoginAttempts is 0, always clear lockUntil
+    if (this.failedLoginAttempts === 0) {
+        console.log('Auto-fix: Clearing lockUntil because failedLoginAttempts is 0');
+        return await this.updateOne({
+            $unset: { lockUntil: 1 }
+        });
+    }
     const updates = { $inc: { failedLoginAttempts: 1 } };
     if (this.failedLoginAttempts + 1 >= 5) {
         updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 }; // Lock for 2 hours
