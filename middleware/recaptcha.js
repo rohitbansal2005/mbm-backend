@@ -5,17 +5,13 @@ const verifyRecaptcha = async (req, res, next) => {
     try {
         const { recaptchaToken } = req.body;
         
-        // Development mode - skip verification if no secret key
+        // Check if reCAPTCHA is properly configured
         if (!process.env.RECAPTCHA_SECRET_KEY) {
-            console.log('reCAPTCHA: Development mode - skipping verification');
-            req.recaptchaData = {
-                success: true,
-                score: 1.0,
-                action: 'development',
-                hostname: 'localhost',
-                timestamp: new Date().toISOString()
-            };
-            return next();
+            console.error('reCAPTCHA: SECRET_KEY not configured - verification required');
+            return res.status(500).json({
+                error: 'reCAPTCHA not properly configured. Please contact administrator.',
+                code: 'RECAPTCHA_NOT_CONFIGURED'
+            });
         }
         
         if (!recaptchaToken) {
@@ -25,17 +21,12 @@ const verifyRecaptcha = async (req, res, next) => {
             });
         }
 
-        // Development mode token
-        if (recaptchaToken === 'development-mode') {
-            console.log('reCAPTCHA: Development mode token detected');
-            req.recaptchaData = {
-                success: true,
-                score: 1.0,
-                action: 'development',
-                hostname: 'localhost',
-                timestamp: new Date().toISOString()
-            };
-            return next();
+        // Remove development mode bypass - require actual verification
+        if (recaptchaToken === 'development-mode' || recaptchaToken === '') {
+            return res.status(400).json({
+                error: 'reCAPTCHA verification required. Please complete the verification.',
+                code: 'RECAPTCHA_VERIFICATION_REQUIRED'
+            });
         }
 
         // Verify with Google reCAPTCHA API
@@ -70,6 +61,11 @@ const verifyRecaptcha = async (req, res, next) => {
         // Strict hostname check
         const expectedHostname = process.env.RECAPTCHA_HOSTNAME || 'localhost';
         if (hostname !== expectedHostname) {
+            console.warn('reCAPTCHA hostname mismatch:', {
+                expected: expectedHostname,
+                received: hostname,
+                ip: req.ip
+            });
             return res.status(400).json({
                 error: 'reCAPTCHA hostname mismatch',
                 code: 'RECAPTCHA_HOSTNAME_MISMATCH'
@@ -78,6 +74,11 @@ const verifyRecaptcha = async (req, res, next) => {
 
         // If v3, require minimum score
         if (typeof score === 'number' && score < 0.7) {
+            console.warn('reCAPTCHA score too low:', {
+                score,
+                ip: req.ip,
+                userAgent: req.headers['user-agent']
+            });
             return res.status(400).json({
                 error: 'reCAPTCHA score too low. Are you a bot?',
                 code: 'RECAPTCHA_SCORE_LOW',
@@ -107,21 +108,9 @@ const verifyRecaptcha = async (req, res, next) => {
     } catch (error) {
         console.error('reCAPTCHA verification error:', error);
         
-        // In development, allow the request to proceed
-        if (process.env.NODE_ENV === 'development' || !process.env.RECAPTCHA_SECRET_KEY) {
-            console.log('reCAPTCHA: Allowing request in development mode');
-            req.recaptchaData = {
-                success: true,
-                score: 1.0,
-                action: 'development-error',
-                hostname: 'localhost',
-                timestamp: new Date().toISOString()
-            };
-            return next();
-        }
-        
+        // Don't allow requests to proceed on error - require proper verification
         return res.status(500).json({
-            error: 'reCAPTCHA verification service unavailable',
+            error: 'reCAPTCHA verification service unavailable. Please try again later.',
             code: 'RECAPTCHA_SERVICE_ERROR'
         });
     }
