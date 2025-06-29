@@ -481,39 +481,63 @@ router.post('/login', verifyRecaptcha, async (req, res) => {
     let { email, password, recaptchaToken } = req.body;
     email = email.toLowerCase(); // Always lowercase for lookup
 
+    console.log('=== LOGIN DEBUG ===');
+    console.log('Request body:', { email, password: password ? '***' : 'MISSING', recaptchaToken: recaptchaToken ? 'PRESENT' : 'MISSING' });
+
     if (!email || !password) {
+      console.log('Missing email or password');
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
     // Find user by email (lowercase)
     const user = await User.findOne({ email });
-    console.log('Login attempt:', email);
+    console.log('Login attempt for email:', email);
     console.log('User found:', !!user);
+    
     if (!user) {
+      console.log('User not found in database');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    console.log('User details:', {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      passwordLength: user.password ? user.password.length : 0,
+      passwordStartsWith: user.password ? user.password.substring(0, 10) : 'N/A',
+      failedLoginAttempts: user.failedLoginAttempts,
+      isLocked: user.isLocked ? user.isLocked() : false
+    });
+
     // Check if user is banned
     if (user.isBanned) {
+      console.log('User is banned');
       return res.status(403).json({ message: 'Account is banned' });
     }
 
     // Check if account is locked
     if (user.isLocked()) {
+      console.log('Account is locked');
       return res.status(423).json({ message: 'Account is temporarily locked due to too many failed login attempts' });
     }
 
     // Verify password
+    console.log('Attempting password comparison...');
     const isPasswordValid = await user.comparePassword(password);
-    console.log('Password valid:', isPasswordValid);
+    console.log('Password comparison result:', isPasswordValid);
+    
     if (!isPasswordValid) {
+      console.log('Password validation failed - incrementing failed attempts');
       // Increment failed login attempts
       await user.incrementLoginAttempts();
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    console.log('Password validation successful!');
+
     // Reset failed login attempts on successful login
     if (user.failedLoginAttempts > 0) {
+      console.log('Resetting failed login attempts');
       user.failedLoginAttempts = 0;
       user.lockUntil = undefined;
       await user.save();
@@ -531,6 +555,7 @@ router.post('/login', verifyRecaptcha, async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    console.log('Login successful, sending response');
     res.json({
       message: 'Login successful',
       token,
