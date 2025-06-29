@@ -609,7 +609,7 @@ router.get('/test-email', async (req, res) => {
 // Registration route with ultimate security
 router.post('/register', verifyRecaptcha, async (req, res) => {
   try {
-    const { username, email, password, fullName, phone, department, year, inviteCode, referralCode, recaptchaToken } = req.body;
+    const { username, email, password, fullName, phone, department, year, inviteCode, referralCode: friendReferralCode, recaptchaToken } = req.body;
 
     // Basic validation
     if (!username || !email || !password || !fullName) {
@@ -646,11 +646,29 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Generate referral code if not provided
-    const userReferralCode = referralCode || `REF${Date.now()}${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
+    // Generate a unique referral code for the new user (based on username)
+    let myReferralCode = username;
+    let exists = await User.findOne({ referralCode: myReferralCode });
+    let counter = 1;
+    while (exists) {
+      myReferralCode = `${username}${counter}`;
+      exists = await User.findOne({ referralCode: myReferralCode });
+      counter++;
+    }
 
     // Get user IP address
     const ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+
+    // Find the user who referred (if any)
+    let referredBy = null;
+    if (friendReferralCode) {
+      const refUser = await User.findOne({ referralCode: friendReferralCode });
+      if (refUser) {
+        referredBy = refUser._id;
+        // Optionally, increment referralCount for refUser
+        await User.updateOne({ _id: refUser._id }, { $inc: { referralCount: 1 } });
+      }
+    }
 
     // Create user (auto-approved)
     const user = new User({
@@ -662,7 +680,8 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
       department: department || 'General',
       year: year || '1st Year',
       inviteCode,
-      referralCode: userReferralCode,
+      referralCode: myReferralCode, // always unique
+      referredBy, // reference to the user who referred
       isApproved: true, // Auto-approved
       isVerified: true, // Auto-verified for now
       registrationDate: new Date(),
