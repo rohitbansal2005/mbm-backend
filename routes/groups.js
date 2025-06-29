@@ -16,6 +16,9 @@ const createNotification = require('../utils/createNotification');
 const cloudinary = require('../config/cloudinary');
 const { sendPushNotification } = require('../utils/webPush');
 const crypto = require('crypto');
+const AES = require('crypto-js/aes');
+const Utf8 = require('crypto-js/enc-utf8');
+const isBlocked = require('../utils/isBlocked');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -449,12 +452,8 @@ router.get('/:groupId/messages', auth, async (req, res) => {
         // Decrypt messages before sending to frontend
         const decryptedMessages = messages.map(message => {
             try {
-                const algorithm = 'aes-256-cbc';
-                const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-                const decipher = crypto.createDecipher(algorithm, key);
-                let decrypted = decipher.update(message.text, 'hex', 'utf8');
-                decrypted += decipher.final('utf8');
-                message.decryptedText = decrypted;
+                const bytes = AES.decrypt(message.text, process.env.SECRET_KEY || 'fallback-secret-key');
+                message.decryptedText = bytes.toString(Utf8) || '';
             } catch {
                 message.decryptedText = '';
             }
@@ -482,14 +481,11 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         }
         
         // Decrypt the text for profanity check
-        const algorithm = 'aes-256-cbc';
-        const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-        const decipher = crypto.createDecipher(algorithm, key);
-        let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        
+        const bytes = AES.decrypt(req.body.text, process.env.SECRET_KEY || 'fallback-secret-key');
+        const decrypted = bytes.toString(Utf8) || '';
+
         if (filter.isProfane(decrypted)) {
-            return res.status(400).json({ msg: 'Inappropriate language is not allowed in group messages.' });
+            return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
         }
         
         const newMessage = new GroupMessage({
@@ -582,14 +578,11 @@ router.put('/:groupId/messages/:messageId', auth, async (req, res) => {
         }
         
         // Decrypt the text for profanity check
-        const algorithm = 'aes-256-cbc';
-        const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-        const decipher = crypto.createDecipher(algorithm, key);
-        let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        
+        const bytes = AES.decrypt(req.body.text, process.env.SECRET_KEY || 'fallback-secret-key');
+        const decrypted = bytes.toString(Utf8) || '';
+
         if (filter.isProfane(decrypted)) {
-            return res.status(400).json({ msg: 'Inappropriate language is not allowed in group messages.' });
+            return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
         }
         
         // The text is already encrypted from frontend, so save it directly

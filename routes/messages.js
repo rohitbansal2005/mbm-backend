@@ -10,6 +10,8 @@ const isBlocked = require('../utils/isBlocked');
 const { sendPushNotification } = require('../utils/webPush');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const AES = require('crypto-js/aes');
+const Utf8 = require('crypto-js/enc-utf8');
 
 // Strict rate limiting for message sending to prevent bot spam
 const messageLimiter = rateLimit({
@@ -75,12 +77,8 @@ router.get('/', auth, async (req, res) => {
         // Decrypt messages before sending to frontend
         const decryptedMessages = formattedMessages.map(message => {
             try {
-                const algorithm = 'aes-256-cbc';
-                const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-                const decipher = crypto.createDecipher(algorithm, key);
-                let decrypted = decipher.update(message.text, 'hex', 'utf8');
-                decrypted += decipher.final('utf8');
-                message.decryptedText = decrypted;
+                const bytes = AES.decrypt(message.text, process.env.SECRET_KEY || 'fallback-secret-key');
+                message.decryptedText = bytes.toString(Utf8) || '';
             } catch {
                 message.decryptedText = '';
             }
@@ -114,12 +112,8 @@ router.get('/:userId', auth, async (req, res) => {
         // Decrypt messages before sending to frontend
         const decryptedMessages = formattedMessages.map(message => {
             try {
-                const algorithm = 'aes-256-cbc';
-                const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-                const decipher = crypto.createDecipher(algorithm, key);
-                let decrypted = decipher.update(message.text, 'hex', 'utf8');
-                decrypted += decipher.final('utf8');
-                message.decryptedText = decrypted;
+                const bytes = AES.decrypt(message.text, process.env.SECRET_KEY || 'fallback-secret-key');
+                message.decryptedText = bytes.toString(Utf8) || '';
             } catch {
                 message.decryptedText = '';
             }
@@ -163,12 +157,8 @@ router.post(
             }
 
             // Decrypt the text for profanity check
-            const algorithm = 'aes-256-cbc';
-            const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-            const iv = Buffer.alloc(16, 0); // Use a fixed IV for compatibility
-            const decipher = crypto.createDecipheriv(algorithm, key, iv);
-            let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
+            const bytes = AES.decrypt(req.body.text, process.env.SECRET_KEY || 'fallback-secret-key');
+            const decrypted = bytes.toString(Utf8) || '';
 
             if (filter.isProfane(decrypted)) {
                 return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
@@ -248,12 +238,8 @@ router.put(
             }
 
             // Decrypt the text for profanity check
-            const algorithm = 'aes-256-cbc';
-            const key = crypto.scryptSync(process.env.SECRET_KEY || 'fallback-secret-key', 'salt', 32);
-            const iv = Buffer.alloc(16, 0); // Use a fixed IV for compatibility
-            const decipher = crypto.createDecipheriv(algorithm, key, iv);
-            let decrypted = decipher.update(req.body.text, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
+            const bytes = AES.decrypt(req.body.text, process.env.SECRET_KEY || 'fallback-secret-key');
+            const decrypted = bytes.toString(Utf8) || '';
 
             if (filter.isProfane(decrypted)) {
                 return res.status(400).json({ message: 'Inappropriate language is not allowed in messages.' });
