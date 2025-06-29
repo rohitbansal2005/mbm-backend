@@ -65,9 +65,9 @@ const auth = async (req, res, next) => {
         
         // Check for userId or _id in the token (support both payload styles)
         const userId = decoded.userId || decoded._id;
-        console.log('Decoded userId:', userId);
+        console.log('Decoded userId:', userId, '|', typeof userId, '|', userId && userId.length);
         if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-            console.error('Invalid userId:', userId);
+            console.error('Invalid userId:', userId, '|', typeof userId, '|', userId && userId.length);
             return res.status(401).json({
                 message: 'Invalid user ID',
                 error: 'Token verification failed'
