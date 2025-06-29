@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const auth = require('../middleware/auth');
 const { verifyRecaptcha } = require('../middleware/recaptcha');
+const Student = require('../models/Student');
 
 // Store OTPs temporarily (in production, use Redis or similar)
 const otpStore = new Map();
@@ -696,6 +697,57 @@ router.post('/register', verifyRecaptcha, async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    // Generate a unique roll number in MBM<timestamp><random>
+    const randomPart = Math.floor(1000 + Math.random() * 9000); // 4 digit random
+    const rollNumber = `MBM${Date.now()}${randomPart}`;
+
+    try {
+      await Student.create({
+        user: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        rollNumber: rollNumber, // always unique and in required format
+        branch: 'Not specified',
+        session: 'Not specified',
+        semester: 'Not specified',
+        phone: 'Not specified',
+        address: 'Not specified',
+        bio: 'No bio yet',
+        avatar: '',
+        skills: [],
+        socialLinks: {
+          linkedin: '',
+          github: '',
+          website: '',
+          instagram: ''
+        },
+        posts: [],
+        connections: [],
+        projects: [],
+        privacy: {
+          profile: 'public',
+          photo: 'public',
+          email: 'public',
+          phone: 'private',
+          address: 'private',
+          bio: 'public',
+          education: 'public',
+          experience: 'public',
+          skills: 'public',
+          socialLinks: 'public',
+          followers: 'public',
+          following: 'public'
+        },
+        followers: [],
+        following: [],
+        education: [],
+        experience: [],
+        recentActivity: []
+      });
+    } catch (err) {
+      console.error('Student record create error:', err);
+    }
 
     res.status(201).json({ 
       success: true,
