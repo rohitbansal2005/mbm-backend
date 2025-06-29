@@ -62,12 +62,12 @@ const auth = async (req, res, next) => {
             }
         }
         
-        // Check for userId in the token (from login/register routes)
+        // Check for userId or _id in the token (support both payload styles)
         const userId = decoded.userId || decoded._id;
         if (!userId) {
-            console.error('Token missing userId:', decoded);
+            console.error('Token missing userId or _id:', decoded);
             return res.status(401).json({ 
-                message: 'Invalid token format: missing userId',
+                message: 'Invalid token format: missing userId or _id',
                 error: 'Token verification failed'
             });
         }
