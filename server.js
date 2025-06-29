@@ -122,7 +122,10 @@ const devLimiter = rateLimit({
     max: 1000, // 1000 requests per minute
     message: 'Too many requests, please try again later',
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    keyGenerator: (req) => {
+        return req.ip + req.headers['user-agent'];
+    }
 });
 
 // Apply rate limiting to all routes

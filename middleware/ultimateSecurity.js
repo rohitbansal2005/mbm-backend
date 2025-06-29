@@ -123,7 +123,7 @@ const ultimateSecurity = {
 
         // Check for suspicious headers
         const suspiciousHeaders = [
-            'x-forwarded-for', 'x-real-ip', 'x-client-ip',
+            'x-real-ip', 'x-client-ip',
             'cf-connecting-ip', 'x-forwarded', 'forwarded-for'
         ];
 

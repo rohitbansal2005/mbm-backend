@@ -11,7 +11,7 @@ const upload = require('../config/multer');
 const Filter = require('bad-words');
 const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
-const { sendPushNotification, sendPushNotificationToUser } = require('../utils/webPush');
+const { sendPushNotificationToUser } = require('../utils/webPush');
 const rateLimit = require('express-rate-limit');
 
 // In-memory array for demo (use DB in production)

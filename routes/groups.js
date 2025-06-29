@@ -14,7 +14,7 @@ const Filter = require('bad-words');
 const filter = new Filter();
 const createNotification = require('../utils/createNotification');
 const cloudinary = require('../config/cloudinary');
-const { sendPushNotification } = require('../utils/webPush');
+const { sendPushNotificationToUser } = require('../utils/webPush');
 const crypto = require('crypto');
 const AES = require('crypto-js/aes');
 const Utf8 = require('crypto-js/enc-utf8');
@@ -541,7 +541,7 @@ router.post('/:groupId/messages', auth, async (req, res) => {
         try {
             const memberIds = group.members.map(m => m.toString()).filter(id => id !== req.user._id.toString());
             for (const memberId of memberIds) {
-                await sendPushNotification(memberId, {
+                await sendPushNotificationToUser(memberId, {
                     title: `New message in ${group.name}`,
                     body: `${req.user.username}: ${decrypted.substring(0, 50)}${decrypted.length > 50 ? '...' : ''}`,
                     icon: '/mbmlogo.png',
@@ -649,7 +649,7 @@ router.put('/:id/add-member', auth, async (req, res) => {
         await group.save();
         // Send push notification to the invited user
         try {
-            await sendPushNotification(userId, {
+            await sendPushNotificationToUser(userId, {
                 title: 'Group Invite',
                 body: `You have been added to the group ${group.name}`,
                 icon: '/mbmlogo.png',

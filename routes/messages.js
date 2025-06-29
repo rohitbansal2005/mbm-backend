@@ -7,11 +7,13 @@ const { check, validationResult } = require('express-validator');
 const Filter = require('bad-words');
 const filter = new Filter();
 const isBlocked = require('../utils/isBlocked');
-const { sendPushNotification } = require('../utils/webPush');
+const { sendPushNotificationToUser } = require('../utils/webPush');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const AES = require('crypto-js/aes');
 const Utf8 = require('crypto-js/enc-utf8');
+const GroupMessage = require('../models/GroupMessage');
+const Report = require('../models/Report');
 
 // Strict rate limiting for message sending to prevent bot spam
 const messageLimiter = rateLimit({
@@ -193,7 +195,7 @@ router.post(
 
             // Send push notification to recipient
             try {
-                await sendPushNotification(req.params.userId, {
+                await sendPushNotificationToUser(req.params.userId, {
                     title: 'New Message',
                     body: `${req.user.username}: ${decrypted.substring(0, 50)}${decrypted.length > 50 ? '...' : ''}`,
                     icon: '/mbmlogo.png',
@@ -399,6 +401,62 @@ router.get('/conversations', auth, async (req, res) => {
         console.error('Error fetching conversations:', error);
         res.status(500).json({ message: 'Error fetching conversations' });
     }
+});
+
+// DELETE all my messages (one-to-one and group)
+router.delete('/delete-all-my-messages', auth, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    await Message.deleteMany({ sender: userId });
+    await GroupMessage.deleteMany({ sender: userId });
+    res.json({ success: true, message: 'All your messages deleted.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error deleting messages.' });
+  }
+});
+
+// Report and delete any message (one-to-one or group)
+router.post('/:messageId/report-delete', auth, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { reason = 'Other', description = 'Reported via bulk action' } = req.body;
+    let message = await Message.findById(messageId);
+    let groupMessage = null;
+    let deleted = false;
+    if (message) {
+      await Message.deleteOne({ _id: messageId });
+      deleted = true;
+    } else {
+      groupMessage = await GroupMessage.findById(messageId);
+      if (groupMessage) {
+        await GroupMessage.deleteOne({ _id: messageId });
+        deleted = true;
+      }
+    }
+    if (!deleted) return res.status(404).json({ success: false, message: 'Message not found.' });
+    // Create report
+    await Report.create({
+      reporter: req.user._id,
+      reportedItem: messageId,
+      itemType: 'General',
+      reason,
+      description
+    });
+    res.json({ success: true, message: 'Message deleted and reported.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error reporting/deleting message.' });
+  }
+});
+
+// Bulk delete messages by IDs (only own messages)
+router.post('/bulk-delete', auth, async (req, res) => {
+  const { messageIds } = req.body;
+  if (!Array.isArray(messageIds) || messageIds.length === 0) {
+    return res.status(400).json({ success: false, message: 'No messages selected.' });
+  }
+  const userId = req.user._id;
+  await Message.deleteMany({ _id: { $in: messageIds }, sender: userId });
+  res.json({ success: true, message: 'Selected messages deleted.' });
 });
 
 module.exports = router;
