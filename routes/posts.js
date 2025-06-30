@@ -153,12 +153,6 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     // Populate user data
     await post.populate('author', 'username fullName profilePicture badgeType');
 
-    // Emit socket event for new post
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('newPost', post);
-    }
-
     res.status(201).json({
       message: 'Post created successfully',
       post,
